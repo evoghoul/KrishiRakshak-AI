@@ -1,6 +1,6 @@
 # 🌾 KrishiRakshak: AI-Powered Farm Intelligence Agent
 
-KrishiRakshak is an advanced, multilingual, multimodal agricultural assistant designed to bridge information asymmetry for smallholder and rural farmers. Built for the Smart India Hackathon (SIH), it combines real-time data ingestion, RAG document retrieval, and a transparent financial decision engine to help farmers grow better, sell smarter, and lose less.
+KrishiRakshak is an advanced, multilingual, multimodal agricultural assistant designed to bridge information asymmetry for smallholder and rural farmers. Built for Farmers, it combines real-time data ingestion, RAG document retrieval, and a transparent financial decision engine to help farmers grow better, sell smarter, and lose less.
 
 ---
 

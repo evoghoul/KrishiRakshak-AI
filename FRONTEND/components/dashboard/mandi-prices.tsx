@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { TrendingUp, TrendingDown, Minus, Search } from 'lucide-react'
 
 type Trend = 'up' | 'down' | 'flat'
@@ -15,15 +15,6 @@ type MandiRow = {
   trend: Trend
 }
 
-const ROWS: MandiRow[] = [
-  { crop: 'Tomato', variety: 'Hybrid', market: 'Guntur', price: 2450, unit: 'quintal', change: 8.2, trend: 'up' },
-  { crop: 'Chili', variety: 'Teja', market: 'Guntur', price: 18600, unit: 'quintal', change: 12.5, trend: 'up' },
-  { crop: 'Paddy', variety: 'BPT 5204', market: 'Tenali', price: 2180, unit: 'quintal', change: -2.1, trend: 'down' },
-  { crop: 'Cotton', variety: 'MCU-5', market: 'Guntur', price: 7320, unit: 'quintal', change: 0, trend: 'flat' },
-  { crop: 'Turmeric', variety: 'Finger', market: 'Duggirala', price: 14200, unit: 'quintal', change: 5.4, trend: 'up' },
-  { crop: 'Maize', variety: 'Yellow', market: 'Tenali', price: 2090, unit: 'quintal', change: -1.3, trend: 'down' },
-]
-
 const TREND_STYLES: Record<Trend, { icon: typeof TrendingUp; className: string }> = {
   up: { icon: TrendingUp, className: 'text-primary' },
   down: { icon: TrendingDown, className: 'text-destructive' },
@@ -32,12 +23,35 @@ const TREND_STYLES: Record<Trend, { icon: typeof TrendingUp; className: string }
 
 export function MandiPrices() {
   const [query, setQuery] = useState('')
-  const filtered = ROWS.filter((r) =>
+  const [marketData, setMarketData] = useState<MandiRow[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  // SECURE BACKEND FETCH (Fixes the CORS error!)
+  useEffect(() => {
+    const fetchLivePrices = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/prices')
+        const data = await response.json()
+
+        if (!data.error && Array.isArray(data)) {
+          setMarketData(data)
+        }
+      } catch (error) {
+        console.error("Failed to fetch live prices:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchLivePrices()
+  }, [])
+
+  const filtered = marketData.filter((r) =>
     `${r.crop} ${r.variety} ${r.market}`.toLowerCase().includes(query.toLowerCase()),
   )
 
   return (
-    <section className="flex h-full flex-col rounded-3xl border border-border bg-card p-5 lg:p-6">
+    <section className="flex h-full flex-col rounded-3xl border border-border bg-card p-5 lg:p-6 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-foreground">Wholesale Market Information</h2>
@@ -45,11 +59,11 @@ export function MandiPrices() {
         </div>
         <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-primary">
           <span className="size-1.5 animate-pulse rounded-full bg-primary" />
-          Live
+          Live Gov Data
         </span>
       </div>
 
-      <div className="mt-4 flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2">
+      <div className="mt-4 flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 focus-within:border-primary transition-colors">
         <Search className="size-4 text-muted-foreground" aria-hidden="true" />
         <input
           type="search"
@@ -57,7 +71,6 @@ export function MandiPrices() {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search crop or market..."
           className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-          aria-label="Search mandi prices"
         />
       </div>
 
@@ -72,11 +85,18 @@ export function MandiPrices() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((row) => {
+            {isLoading && (
+              <tr>
+                <td colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
+                  Fetching live market data from Agmarknet...
+                </td>
+              </tr>
+            )}
+            {!isLoading && filtered.map((row, index) => {
               const t = TREND_STYLES[row.trend]
               const Icon = t.icon
               return (
-                <tr key={`${row.crop}-${row.market}`} className="border-b border-border/60 last:border-0">
+                <tr key={`${row.crop}-${row.market}-${index}`} className="border-b border-border/60 last:border-0 hover:bg-secondary/40 transition-colors">
                   <td className="py-3 pr-4">
                     <div className="font-semibold text-foreground">{row.crop}</div>
                     <div className="text-xs text-muted-foreground">{row.variety}</div>
@@ -95,7 +115,7 @@ export function MandiPrices() {
                 </tr>
               )
             })}
-            {filtered.length === 0 && (
+            {!isLoading && filtered.length === 0 && marketData.length > 0 && (
               <tr>
                 <td colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
                   No markets match &quot;{query}&quot;.

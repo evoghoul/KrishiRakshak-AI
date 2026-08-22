@@ -2,19 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import {
-  Warehouse,
-  Zap,
-  Factory,
-  Users,
-  CheckCircle2,
-  Minus,
-  Plus,
-  Equal,
-  Volume2,
-  Square,
-  Sparkles,
+  Warehouse, Zap, Factory, Users, CheckCircle2, Minus, Plus, Equal,
+  Volume2, Square, Sparkles, BrainCircuit
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { useLanguage, type SupportedLang } from '@/lib/language-context'
 
 type ActionKey = 'store' | 'sell' | 'process' | 'pool'
 
@@ -30,94 +22,216 @@ type Action = {
   breakdown: { label: string; value: number; kind: 'cost' | 'gain' }[]
 }
 
-const ACTIONS: Action[] = [
-  {
-    key: 'store',
-    label: 'Store 2 Days',
-    icon: Warehouse,
-    verdict: 'STORE FOR 2 DAYS',
-    tagline: 'Hold in cold storage, then sell at the price peak.',
-    recommended: true,
-    net: 18500,
-    narration:
-      'The AI recommends storing your 50 quintals of tomato for 2 days. Storage will cost 4,000 rupees, but the expected price gain is 22,500 rupees. That means a net profit increase of 18,500 rupees compared to selling today.',
-    breakdown: [
-      { label: 'Storage Cost (50Q × ₹40 × 2 days)', value: -4000, kind: 'cost' },
-      { label: 'Expected Price Gain (₹450/Q × 50Q)', value: 22500, kind: 'gain' },
-    ],
+const ENGINE_TRANSLATIONS: Record<SupportedLang, any> = {
+  en: {
+    aiPick: 'AI Pick',
+    aiProcessing: 'AI is processing factors...',
+    aiVerdict: 'AI Verdict',
+    actionRecommended: 'Action Recommended',
+    whyTitle: 'Why?',
+    whySub: 'Transparent logic breakdown',
+    playAudio: 'Play Audio',
+    stopAudio: 'Stop',
+    netGain: 'Estimated Net Gain',
+    netDiff: 'Net Difference',
+    tabs: {
+      store: 'Store', sell: 'Sell Now', process: 'Process', pool: 'Pool'
+    },
+    verdicts: {
+      store: 'STORE FOR 3 DAYS', sell: 'SELL IMMEDIATELY', process: 'PROCESS INTO PUREE', pool: 'POOL WITH VILLAGE'
+    },
+    narrations: {
+      store: 'The AI recommends storing your crop. The expected market price surge outweighs your daily cold storage costs.',
+      sell: 'Selling now gives you immediate cash. The market is trending down, making storage too risky.',
+      process: 'High spoilage risk detected! Processing adds value and saves your crop from going to waste.',
+      pool: 'Pooling unlocks a bulk seller bonus, reducing your high transport costs significantly.'
+    },
+    labels: {
+      storageCost: 'Storage Cost (3 Days)',
+      expGain: 'Expected Price Gain',
+      revToday: 'Revenue Today',
+      missedGain: 'Missed Price Gain vs Storing',
+      valueAdd: 'Value-Add Revenue',
+      processCost: 'Processing & Packaging Cost',
+      bulkBonus: 'Bulk Price Bonus (15%)',
+      poolLog: 'Pool Logistics Share'
+    }
   },
-  {
-    key: 'sell',
-    label: 'Sell Now',
-    icon: Zap,
-    verdict: 'SELL NOW',
-    tagline: 'Immediate cash, zero storage risk.',
-    recommended: false,
-    net: 0,
-    narration:
-      'Selling now gives you 60,000 rupees today at 1,200 rupees per quintal, with no storage cost and no spoilage risk. But you miss the expected price rise over the next 3 days.',
-    breakdown: [
-      { label: 'Revenue Today (₹1,200/Q × 50Q)', value: 60000, kind: 'gain' },
-      { label: 'Missed Price Gain vs storing', value: -18500, kind: 'cost' },
-    ],
+  te: {
+    aiPick: 'AI ఎంపిక',
+    aiProcessing: 'AI విశ్లేషిస్తోంది...',
+    aiVerdict: 'AI తీర్పు',
+    actionRecommended: 'సిఫార్సు చేయబడిన చర్య',
+    whyTitle: 'ఎందుకు?',
+    whySub: 'పారదర్శక తర్కం విశ్లేషణ',
+    playAudio: 'వాయిస్ వినండి',
+    stopAudio: 'ఆపండి',
+    netGain: 'అంచనా వేసిన నికర లాభం',
+    netDiff: 'నికర వ్యత్యాసం',
+    tabs: {
+      store: 'నిల్వ చేయండి', sell: 'ఇప్పుడే అమ్మండి', process: 'ప్రాసెస్ చేయండి', pool: 'పూలింగ్'
+    },
+    verdicts: {
+      store: '3 రోజులు నిల్వ చేయండి', sell: 'వెంటనే అమ్మేయండి', process: 'ప్యూరీగా మార్చండి', pool: 'గ్రామ రైతులతో కలవండి'
+    },
+    narrations: {
+      store: 'పంటను నిల్వ చేయమని AI సిఫార్సు చేస్తోంది. మార్కెట్ ధర పెరుగుదల మీ నిల్వ ఖర్చుల కంటే ఎక్కువగా ఉంది.',
+      sell: 'ఇప్పుడే అమ్మడం వల్ల తక్షణ నగదు వస్తుంది. మార్కెట్ తగ్గుముఖం పడుతోంది కాబట్టి నిల్వ చేయడం ప్రమాదకరం.',
+      process: 'పాడయ్యే ప్రమాదం ఎక్కువగా ఉంది! ప్రాసెస్ చేయడం వల్ల విలువ పెరుగుతుంది మరియు పంట వృధా కాకుండా ఉంటుంది.',
+      pool: 'పూలింగ్ చేయడం వల్ల బల్క్ బోనస్ వస్తుంది, మీ రవాణా ఖర్చులు బాగా తగ్గుతాయి.'
+    },
+    labels: {
+      storageCost: 'నిల్వ ఖర్చు (3 రోజులు)',
+      expGain: 'అంచనా వేసిన ధర లాభం',
+      revToday: 'నేటి ఆదాయం',
+      missedGain: 'నిల్వ చేయకపోవడం వల్ల కోల్పోయిన లాభం',
+      valueAdd: 'అదనపు విలువ ఆదాయం',
+      processCost: 'ప్రాసెసింగ్ & ప్యాకేజింగ్ ఖర్చు',
+      bulkBonus: 'బల్క్ ధర బోనస్ (15%)',
+      poolLog: 'రవాణా ఖర్చు వాటా'
+    }
   },
-  {
-    key: 'process',
-    label: 'Process',
-    icon: Factory,
-    verdict: 'PROCESS INTO PUREE',
-    tagline: 'Convert to puree to beat 45% spoilage risk.',
-    recommended: false,
-    net: 12000,
-    narration:
-      'Processing your tomatoes into puree adds value and avoids the 45 percent spoilage risk, for an estimated net gain of 12,000 rupees. However, it requires processing time and access to a unit.',
-    breakdown: [
-      { label: 'Value-Add Revenue', value: 30000, kind: 'gain' },
-      { label: 'Processing & Packaging Cost', value: -18000, kind: 'cost' },
-    ],
-  },
-  {
-    key: 'pool',
-    label: 'Pool',
-    icon: Users,
-    verdict: 'POOL WITH VILLAGE',
-    tagline: 'Join the village pool for a bulk price bonus.',
-    recommended: false,
-    net: 15000,
-    narration:
-      'Pooling with your village group unlocks a 12 percent bulk price bonus, for an estimated net gain of 15,000 rupees. This requires waiting until the pool reaches its target quantity.',
-    breakdown: [
-      { label: 'Bulk Price Bonus (12%)', value: 18000, kind: 'gain' },
-      { label: 'Pool Logistics Share', value: -3000, kind: 'cost' },
-    ],
-  },
-]
+  hi: {
+    aiPick: 'AI की पसंद',
+    aiProcessing: 'AI गणना कर रहा है...',
+    aiVerdict: 'AI का निर्णय',
+    actionRecommended: 'अनुशंसित कार्रवाई',
+    whyTitle: 'क्यों?',
+    whySub: 'पारदर्शी तर्क विश्लेषण',
+    playAudio: 'ऑडियो सुनें',
+    stopAudio: 'रोकें',
+    netGain: 'अनुमानित शुद्ध लाभ',
+    netDiff: 'शुद्ध अंतर',
+    tabs: {
+      store: 'स्टोर करें', sell: 'अभी बेचें', process: 'प्रोसेस करें', pool: 'पूलिंग करें'
+    },
+    verdicts: {
+      store: '3 दिनों के लिए स्टोर करें', sell: 'तुरंत बेचें', process: 'प्यूरी में बदलें', pool: 'गांव के साथ पूल करें'
+    },
+    narrations: {
+      store: 'AI आपकी फसल को स्टोर करने की सलाह देता है। अपेक्षित बाजार मूल्य में वृद्धि आपके भंडारण लागत से अधिक है।',
+      sell: 'अभी बेचने से आपको तुरंत नकद मिलता है। बाजार नीचे जा रहा है, भंडारण बहुत जोखिम भरा है।',
+      process: 'खराब होने का उच्च जोखिम! प्रोसेसिंग मूल्य जोड़ता है और आपकी फसल को बर्बाद होने से बचाता है।',
+      pool: 'पूलिंग से थोक विक्रेता बोनस मिलता है, जिससे आपकी उच्च परिवहन लागत काफी कम हो जाती है।'
+    },
+    labels: {
+      storageCost: 'भंडारण लागत (3 दिन)',
+      expGain: 'अपेक्षित मूल्य लाभ',
+      revToday: 'आज की आय',
+      missedGain: 'स्टोर करने की तुलना में छूटा हुआ लाभ',
+      valueAdd: 'मूल्य-वर्धित आय',
+      processCost: 'प्रोसेसिंग और पैकेजिंग लागत',
+      bulkBonus: 'थोक मूल्य बोनस (15%)',
+      poolLog: 'पूल लॉजिस्टिक्स लागत'
+    }
+  }
+} as any
 
 function formatSigned(value: number) {
   const sign = value < 0 ? '-' : '+'
-  return `${sign}₹${Math.abs(value).toLocaleString('en-IN')}`
+  return `${sign}₹${Math.abs(Math.round(value)).toLocaleString('en-IN')}`
 }
 
-export function DecisionEngine() {
+// NOTICE: We added `data` to the props so it can read live inputs!
+export function DecisionEngine({ data = {}, result, isCalculating }: any) {
+  const { lang } = useLanguage()
+  const t = ENGINE_TRANSLATIONS[lang] || ENGINE_TRANSLATIONS.en
+
   const [active, setActive] = useState<ActionKey>('store')
   const [speaking, setSpeaking] = useState(false)
   const supportsSpeech = useRef(false)
 
+  // ============================================================================
+  // THE LIVE FINANCIAL MATH ENGINE
+  // Extracts numbers from the live 'data' state and calculates exact rupees!
+  // ============================================================================
+  const vol = parseFloat(String(data.volume || '1000').replace(/[^0-9.]/g, '')) || 1000
+  const currPrice = parseFloat(String(data.currentPrice || '24').replace(/[^0-9.]/g, '')) || 24
+  const expPrice = parseFloat(String(data.expectedPrice || '30').replace(/[^0-9.]/g, '')) || 30
+  const storeCost = parseFloat(String(data.storageCost || '2').replace(/[^0-9.]/g, '')) || 2
+  const dist = parseFloat(String(data.distance || '45').replace(/[^0-9.]/g, '')) || 45
+
+  // 1. Store Calculation
+  const storeGain = vol * (expPrice - currPrice)
+  const storeCostTotal = -(vol * storeCost * 3)
+  const storeNet = storeGain + storeCostTotal
+
+  // 2. Sell Calculation
+  const sellRev = vol * currPrice
+  const sellMissed = storeNet > 0 ? -storeNet : 0
+  const sellNet = 0 // Baseline comparative
+
+  // 3. Process Calculation
+  const processRev = (vol * currPrice) * 0.5 // 50% value add
+  const processCost = -(vol * 5) // Flat ₹5/kg processing fee
+  const processNet = processRev + processCost
+
+  // 4. Pool Calculation
+  const poolBonus = (vol * currPrice) * 0.15 // 15% better rate
+  const poolLogistics = -(dist * 10) // ₹10 per km split
+  const poolNet = poolBonus + poolLogistics
+
+  // Dynamic Array mapping to our translated strings and live math
+  const ACTIONS: Action[] = [
+    {
+      key: 'store', label: t.tabs.store, icon: Warehouse, verdict: t.verdicts.store,
+      tagline: '', recommended: storeNet > sellNet && storeNet > processNet, net: storeNet, narration: t.narrations.store,
+      breakdown: [
+        { label: t.labels.storageCost, value: storeCostTotal, kind: 'cost' },
+        { label: t.labels.expGain, value: storeGain, kind: 'gain' },
+      ],
+    },
+    {
+      key: 'sell', label: t.tabs.sell, icon: Zap, verdict: t.verdicts.sell,
+      tagline: '', recommended: sellNet > storeNet, net: sellNet, narration: t.narrations.sell,
+      breakdown: [
+        { label: t.labels.revToday, value: sellRev, kind: 'gain' },
+        { label: t.labels.missedGain, value: sellMissed, kind: 'cost' },
+      ],
+    },
+    {
+      key: 'process', label: t.tabs.process, icon: Factory, verdict: t.verdicts.process,
+      tagline: '', recommended: processNet > storeNet, net: processNet, narration: t.narrations.process,
+      breakdown: [
+        { label: t.labels.valueAdd, value: processRev, kind: 'gain' },
+        { label: t.labels.processCost, value: processCost, kind: 'cost' },
+      ],
+    },
+    {
+      key: 'pool', label: t.tabs.pool, icon: Users, verdict: t.verdicts.pool,
+      tagline: '', recommended: poolNet > storeNet, net: poolNet, narration: t.narrations.pool,
+      breakdown: [
+        { label: t.labels.bulkBonus, value: poolBonus, kind: 'gain' },
+        { label: t.labels.poolLog, value: poolLogistics, kind: 'cost' },
+      ],
+    },
+  ]
+
+  // Auto-switch tab when AI finishes calculating
+  useEffect(() => {
+    if (result && result.status) {
+      setActive(result.status as ActionKey)
+    } else {
+      // Auto-select the best mathematical option if no AI override
+      const bestAction = ACTIONS.reduce((prev, current) => (prev.net > current.net) ? prev : current)
+      setActive(bestAction.key)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result, data.volume, data.currentPrice, data.expectedPrice])
+
   const action = ACTIONS.find((a) => a.key === active) ?? ACTIONS[0]
+  const displayVerdict = (result && result.status === active && result.action) ? result.action : action.verdict
+  const displayNarration = (result && result.status === active && result.why) ? result.why : action.narration
 
   useEffect(() => {
-    supportsSpeech.current =
-      typeof window !== 'undefined' && 'speechSynthesis' in window
-    return () => {
-      if (supportsSpeech.current) window.speechSynthesis.cancel()
-    }
+    supportsSpeech.current = typeof window !== 'undefined' && 'speechSynthesis' in window
+    return () => { if (supportsSpeech.current) window.speechSynthesis.cancel() }
   }, [])
 
-  // Stop narration when switching actions.
   useEffect(() => {
     if (supportsSpeech.current) window.speechSynthesis.cancel()
     setSpeaking(false)
-  }, [active])
+  }, [active, lang])
 
   function toggleAudio() {
     if (!supportsSpeech.current) return
@@ -126,7 +240,9 @@ export function DecisionEngine() {
       setSpeaking(false)
       return
     }
-    const utterance = new SpeechSynthesisUtterance(action.narration)
+    const utterance = new SpeechSynthesisUtterance(displayNarration)
+    // Set appropriate accent based on selected language
+    utterance.lang = lang === 'te' ? 'te-IN' : lang === 'hi' ? 'hi-IN' : 'en-IN'
     utterance.rate = 0.95
     utterance.onend = () => setSpeaking(false)
     utterance.onerror = () => setSpeaking(false)
@@ -137,16 +253,10 @@ export function DecisionEngine() {
 
   return (
     <section aria-labelledby="decision-heading" className="flex flex-col gap-4">
-      <h2 id="decision-heading" className="sr-only">
-        AI Decision
-      </h2>
+      <h2 id="decision-heading" className="sr-only">AI Decision</h2>
 
-      {/* Alternative action tabs */}
-      <div
-        role="tablist"
-        aria-label="Decision options"
-        className="grid grid-cols-2 gap-2 sm:grid-cols-4"
-      >
+      {/* TABS */}
+      <div role="tablist" aria-label="Decision options" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {ACTIONS.map((a) => {
           const Icon = a.icon
           const selected = a.key === active
@@ -155,93 +265,76 @@ export function DecisionEngine() {
               key={a.key}
               role="tab"
               aria-selected={selected}
+              disabled={isCalculating}
               type="button"
               onClick={() => setActive(a.key)}
               className={`flex flex-col items-center gap-1.5 rounded-2xl border p-3 text-center transition-colors ${
                 selected
-                  ? 'border-primary bg-primary text-primary-foreground'
+                  ? 'border-primary bg-primary text-primary-foreground shadow-md'
                   : 'border-border bg-card text-foreground hover:bg-secondary'
-              }`}
+              } ${isCalculating ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <Icon className="size-5" aria-hidden="true" />
               <span className="text-xs font-semibold leading-tight">{a.label}</span>
-              {a.recommended ? (
-                <span
-                  className={`text-[10px] font-bold uppercase tracking-wide ${
-                    selected ? 'text-primary-foreground/90' : 'text-primary'
-                  }`}
-                >
-                  AI Pick
+              {selected ? (
+                <span className="text-[10px] font-bold uppercase tracking-wide text-primary-foreground/90">
+                  {t.aiPick}
                 </span>
               ) : (
-                <span className="text-[10px] font-medium uppercase tracking-wide opacity-0">
-                  spacer
-                </span>
+                <span className="text-[10px] font-medium uppercase tracking-wide opacity-0">spacer</span>
               )}
             </button>
           )
         })}
       </div>
 
-      {/* Massive verdict banner */}
-      <div className="relative overflow-hidden rounded-3xl border border-primary/30 bg-primary p-6 text-primary-foreground shadow-lg lg:p-8">
-        <div
-          className="pointer-events-none absolute -right-8 -top-10 size-48 rounded-full bg-primary-foreground/10 blur-2xl"
-          aria-hidden="true"
-        />
+      {/* MASSIVE VERDICT BANNER */}
+      <div className={`relative overflow-hidden rounded-3xl border p-6 shadow-lg lg:p-8 transition-all duration-500 ${
+        isCalculating ? 'bg-secondary border-border animate-pulse' : 'bg-primary border-primary/30 text-primary-foreground'
+      }`}>
+        <div className="pointer-events-none absolute -right-8 -top-10 size-48 rounded-full bg-primary-foreground/10 blur-2xl" aria-hidden="true" />
         <div className="relative">
-          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-primary-foreground/80">
-            <Sparkles className="size-4" aria-hidden="true" />
-            AI Verdict
+          <div className={`flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] ${isCalculating ? 'text-primary' : 'text-primary-foreground/80'}`}>
+            {isCalculating ? <BrainCircuit className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+            {isCalculating ? t.aiProcessing : t.aiVerdict}
           </div>
-          <p className="mt-3 text-pretty text-4xl font-black leading-none tracking-tight lg:text-6xl">
-            {action.verdict}
+          <p className={`mt-3 text-pretty text-3xl font-black leading-none tracking-tight lg:text-4xl ${isCalculating ? 'text-muted-foreground' : ''}`}>
+            {isCalculating ? '...' : displayVerdict}
           </p>
-          <p className="mt-4 max-w-md text-pretty text-sm text-primary-foreground/90 lg:text-base">
-            {action.tagline}
-          </p>
-          {action.net > 0 ? (
+          {!isCalculating && (
             <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary-foreground/15 px-4 py-2 text-sm font-bold">
               <CheckCircle2 className="size-4" aria-hidden="true" />
-              Net gain {formatSigned(action.net)} vs selling today
-            </div>
-          ) : (
-            <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary-foreground/15 px-4 py-2 text-sm font-bold">
-              Baseline option
+              {t.actionRecommended}
             </div>
           )}
         </div>
       </div>
 
-      {/* WHY explainable breakdown */}
-      <div className="rounded-3xl border border-border bg-card p-6">
+      {/* WHY EXPLAINABLE BREAKDOWN */}
+      <div className={`rounded-3xl border border-border bg-card p-6 transition-opacity duration-300 ${isCalculating ? 'opacity-50' : 'opacity-100'}`}>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h3 className="text-lg font-black uppercase tracking-tight text-foreground">
-              Why?
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Transparent financial breakdown
-            </p>
+            <h3 className="text-lg font-black uppercase tracking-tight text-foreground">{t.whyTitle}</h3>
+            <p className="text-xs text-muted-foreground">{t.whySub}</p>
           </div>
           <button
             type="button"
             onClick={toggleAudio}
+            disabled={isCalculating}
             aria-pressed={speaking}
-            className="flex shrink-0 items-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+            className="flex shrink-0 items-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
           >
             {speaking ? (
-              <>
-                <Square className="size-4" aria-hidden="true" />
-                Stop
-              </>
+              <><Square className="size-4" aria-hidden="true" /> {t.stopAudio}</>
             ) : (
-              <>
-                <Volume2 className="size-4" aria-hidden="true" />
-                Play Audio
-              </>
+              <><Volume2 className="size-4" aria-hidden="true" /> {t.playAudio}</>
             )}
           </button>
+        </div>
+
+        {/* Dynamic AI Narration Text */}
+        <div className="mt-4 p-4 rounded-2xl bg-primary/5 border border-primary/20 text-sm font-medium leading-relaxed text-foreground">
+          {displayNarration}
         </div>
 
         <div className="mt-5 flex flex-col gap-3">
@@ -249,41 +342,27 @@ export function DecisionEngine() {
             const isCost = row.kind === 'cost'
             const RowIcon = isCost ? Minus : Plus
             return (
-              <div
-                key={row.label}
-                className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-background p-4"
-              >
+              <div key={row.label} className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-background p-4">
                 <div className="flex items-center gap-3">
-                  <span
-                    className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${
-                      isCost
-                        ? 'bg-destructive/10 text-destructive'
-                        : 'bg-secondary text-primary'
-                    }`}
-                  >
+                  <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${isCost ? 'bg-destructive/10 text-destructive' : 'bg-secondary text-primary'}`}>
                     <RowIcon className="size-4" aria-hidden="true" />
                   </span>
                   <span className="text-sm font-medium text-foreground">{row.label}</span>
                 </div>
-                <span
-                  className={`text-base font-bold tabular-nums ${
-                    isCost ? 'text-destructive' : 'text-primary'
-                  }`}
-                >
+                <span className={`text-base font-bold tabular-nums ${isCost ? 'text-destructive' : 'text-primary'}`}>
                   {formatSigned(row.value)}
                 </span>
               </div>
             )
           })}
 
-          {/* Net result */}
           <div className="mt-1 flex items-center justify-between gap-4 rounded-2xl border-2 border-primary/40 bg-secondary p-4">
             <div className="flex items-center gap-3">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <Equal className="size-4" aria-hidden="true" />
               </span>
               <span className="text-sm font-bold text-foreground">
-                {action.net > 0 ? 'Net Profit Increase' : 'Net Difference'}
+                {action.net > 0 ? t.netGain : t.netDiff}
               </span>
             </div>
             <span className="text-xl font-black tabular-nums text-primary">

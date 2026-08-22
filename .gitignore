@@ -1,0 +1,73 @@
+# ==========================================
+# 1. Environment Variables & Secret API Keys
+# ==========================================
+.env
+.env*.local
+*.env
+
+# ==========================================
+# 2. Python & Backend Files
+# ==========================================
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+.env/
+
+# VS Code Code Runner Temporary Files
+tempCodeRunnerFile.py
+*.pyc
+
+# Distribution / Packaging
+dist/
+build/
+*.egg-info/
+
+# Local Vector Database & SQLite
+chroma_db/
+**/chroma_db/
+*.sqlite3
+
+# ==========================================
+# 3. Next.js & Frontend Files
+# ==========================================
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Next.js Build Output
+.next/
+out/
+
+# Vercel Deployment
+.vercel/
+
+# TypeScript Cache
+*.tsbuildinfo
+
+# ==========================================
+# 4. Operating System & Editor Files
+# ==========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# VS Code workspace caches (keeps team settings clean)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
