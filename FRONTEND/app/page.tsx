@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react'
 import { 
   Bell, Search, Smartphone, Mail, ArrowRight, ArrowLeft, Tractor, Globe, User, 
   MapPin, Save, LogOut, X, AlertTriangle, TrendingUp, AlertCircle, CheckCircle2, 
-  RefreshCw, Loader2, ShieldCheck, KeyRound, Sparkles, Check, Lock
+  RefreshCw, Loader2, ShieldCheck, KeyRound, Sparkles, Check, Lock, Mic
 } from 'lucide-react'
 import { auth, googleProvider } from '@/lib/firebase'
 import { signInWithPopup, RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth'
@@ -14,6 +14,7 @@ import { DashboardHome } from '@/components/dashboard/dashboard-home'
 import { GrowBetter } from '@/components/dashboard/grow-better'
 import { SellSmarter } from '@/components/dashboard/sell-smarter'
 import { LoseLess } from '@/components/dashboard/lose-less'
+import { AIVoiceGuideModal } from '@/components/dashboard/ai-voice-guide-modal'
 import { useLanguage, LANGUAGE_OPTIONS, type SupportedLang } from '@/lib/language-context'
 
 type TranslationRecord = {
@@ -110,6 +111,7 @@ export default function Page() {
   })
 
   const [tab, setTab] = useState<DashboardTab>('home')
+  const [isVoiceGuideOpen, setIsVoiceGuideOpen] = useState(false)
   
   const meta = {
     title: tab === 'home' ? `${t.greeting}, ${userData.name.split(' ')[0] || 'Farmer'}` : 
@@ -153,7 +155,38 @@ export default function Page() {
     if (phoneError) setPhoneError('')
   }
 
-  // Send Real SMS OTP via Fast2SMS Backend
+  // Initialize Firebase Recaptcha
+  const setupRecaptcha = () => {
+    if (typeof window === 'undefined') return null
+    try {
+      if (window.recaptchaVerifier) {
+        try {
+          window.recaptchaVerifier.clear()
+        } catch (e) {}
+        window.recaptchaVerifier = null
+      }
+
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+        callback: () => {
+          console.log('Firebase reCAPTCHA verified successfully')
+        },
+        'expired-callback': () => {
+          console.warn('Firebase reCAPTCHA expired, resetting')
+          if (window.recaptchaVerifier) {
+            window.recaptchaVerifier.clear()
+            window.recaptchaVerifier = null
+          }
+        },
+      })
+      return window.recaptchaVerifier
+    } catch (err) {
+      console.error('Recaptcha setup error:', err)
+      return null
+    }
+  }
+
+  // Send OTP via Firebase Real SMS
   const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setPhoneError('')
@@ -170,7 +203,36 @@ export default function Page() {
 
     setIsSendingOtp(true)
 
+    // 1. Attempt Real Firebase Phone Auth SMS first
+    let firebaseSuccess = false
+    let firebaseErrorMessage = ''
+
     try {
+      const appVerifier = setupRecaptcha()
+      if (appVerifier) {
+        const formattedPhone = `+91${phoneNumber}`
+        console.log(`[Firebase Phone Auth] Sending SMS to ${formattedPhone}...`)
+        const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier)
+        setConfirmationResult(confirmation)
+        setGeneratedOtp('')
+        setShowSimulatedSms(false)
+        setOtpDigits(['', '', '', '', '', ''])
+        setOtpError('')
+        setResendTimer(60)
+        setIsSendingOtp(false)
+        setAppState('otp')
+        firebaseSuccess = true
+        setTimeout(() => otpInputRefs.current[0]?.focus(), 150)
+        return
+      }
+    } catch (firebaseErr: any) {
+      console.error('[Firebase Phone Auth Error]:', firebaseErr)
+      firebaseErrorMessage = firebaseErr?.message || firebaseErr?.code || 'Firebase Auth Error'
+    }
+
+    // 2. If Firebase fails, notify and fallback to backend dev_mode
+    try {
+      console.warn(`[Fallback] Firebase SMS failed (${firebaseErrorMessage}), using backend fallback...`)
       const res = await fetch(`http://localhost:8000/api/send-otp?phone=${phoneNumber}`, {
         method: 'POST',
       })
@@ -180,14 +242,20 @@ export default function Page() {
         throw new Error(data.detail || 'Failed to send OTP')
       }
 
-      // OTP sent successfully via real SMS — go to OTP screen
       setConfirmationResult(null)
-      setGeneratedOtp('')
-      setShowSimulatedSms(false)
       setOtpDigits(['', '', '', '', '', ''])
       setOtpError('')
       setResendTimer(60)
       setIsSendingOtp(false)
+
+      if (data.status === 'dev_mode' && data.dev_otp) {
+        setGeneratedOtp(data.dev_otp)
+        setShowSimulatedSms(true)
+      } else {
+        setGeneratedOtp('')
+        setShowSimulatedSms(false)
+      }
+
       setAppState('otp')
       setTimeout(() => otpInputRefs.current[0]?.focus(), 150)
     } catch (err: any) {
@@ -222,12 +290,31 @@ export default function Page() {
     }, 600)
   }
 
-  // Resend Real SMS OTP via Fast2SMS Backend
+  // Resend OTP handler
   const handleResendOtp = async () => {
     if (resendTimer > 0) return
     setIsSendingOtp(true)
 
     if (authMode === 'phone') {
+      // 1. Try Firebase Resend
+      try {
+        const appVerifier = setupRecaptcha()
+        if (appVerifier && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+          const formattedPhone = `+91${phoneNumber}`
+          const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier)
+          setConfirmationResult(confirmation)
+          setOtpDigits(['', '', '', '', '', ''])
+          setOtpError('')
+          setResendTimer(60)
+          setIsSendingOtp(false)
+          setTimeout(() => otpInputRefs.current[0]?.focus(), 150)
+          return
+        }
+      } catch (fbErr) {
+        console.warn('Firebase resend warning:', fbErr)
+      }
+
+      // 2. Fallback to Backend
       try {
         const res = await fetch(`http://localhost:8000/api/send-otp?phone=${phoneNumber}`, {
           method: 'POST',
@@ -239,6 +326,12 @@ export default function Page() {
         setOtpError('')
         setResendTimer(60)
         setIsSendingOtp(false)
+
+        if (data.status === 'dev_mode' && data.dev_otp) {
+          setGeneratedOtp(data.dev_otp)
+          setShowSimulatedSms(true)
+        }
+
         setTimeout(() => otpInputRefs.current[0]?.focus(), 150)
         return
       } catch (err: any) {
@@ -361,7 +454,31 @@ export default function Page() {
     setIsVerifyingOtp(true)
 
     if (authMode === 'phone') {
-      // Verify via backend (Fast2SMS OTP)
+      // 1. Verify via Firebase confirmationResult if available
+      if (confirmationResult) {
+        try {
+          const result = await confirmationResult.confirm(entered)
+          const user = result.user
+          const userInfo = {
+            name: user.displayName || 'Farmer',
+            initial: 'F',
+            address: userData.address || 'Vadlamudi, Andhra Pradesh',
+            phoneOrEmail: user.phoneNumber || `+91 ${phoneNumber}`,
+          }
+          setUserData(userInfo)
+          localStorage.setItem('krishi_session', JSON.stringify(userInfo))
+          setIsVerifyingOtp(false)
+          setAppState('dashboard')
+          return
+        } catch (firebaseVerifyErr: any) {
+          console.warn('Firebase OTP verification failed:', firebaseVerifyErr)
+          setIsVerifyingOtp(false)
+          setOtpError('Invalid OTP code. Please check your SMS and try again.')
+          return
+        }
+      }
+
+      // 2. Verify via backend (Fast2SMS OTP / dev_mode)
       try {
         const res = await fetch('http://localhost:8000/api/verify-otp', {
           method: 'POST',
@@ -530,6 +647,8 @@ export default function Page() {
                   )}
                 </div>
 
+                <div id="recaptcha-container"></div>
+
                 <button
                   type="submit"
                   disabled={phoneNumber.length !== 10 || isSendingOtp}
@@ -537,7 +656,7 @@ export default function Page() {
                 >
                   {isSendingOtp ? (
                     <>
-                      <Loader2 className="size-4 animate-spin" /> Generating OTP...
+                      <Loader2 className="size-4 animate-spin" /> Sending OTP...
                     </>
                   ) : (
                     <>
@@ -867,7 +986,7 @@ export default function Page() {
 
   return (
     <div className="flex min-h-svh w-full bg-background text-foreground animate-in fade-in duration-500">
-      <DashboardSidebar active={tab} onChange={setTab} />
+      <DashboardSidebar active={tab} onChange={setTab} onOpenVoiceGuide={() => setIsVoiceGuideOpen(true)} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 flex h-20 items-center justify-between gap-4 border-b border-border bg-background/80 px-6 backdrop-blur lg:px-8">
@@ -877,6 +996,17 @@ export default function Page() {
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             
+            {/* Quick Header AI Voice Guide Button */}
+            <button
+              type="button"
+              onClick={() => setIsVoiceGuideOpen(true)}
+              className="flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/30 px-3.5 py-2 text-xs font-extrabold text-primary hover:bg-primary hover:text-primary-foreground transition-all shadow-sm active:scale-95"
+              title="Open AI Voice Guide"
+            >
+              <Mic className="size-4 animate-pulse text-primary" />
+              <span className="hidden sm:inline">AI Voice Guide</span>
+            </button>
+
             {/* FULLY FUNCTIONAL SEARCH BAR */}
             <div className="hidden items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 md:flex focus-within:border-primary transition-colors">
               <Search className="size-4 text-muted-foreground" aria-hidden="true" />
@@ -944,6 +1074,20 @@ export default function Page() {
           {tab === 'lose' && <LoseLess />}
         </main>
       </div>
+
+      {/* Multilingual AI Voice Assistant Modal */}
+      <AIVoiceGuideModal
+        isOpen={isVoiceGuideOpen}
+        onClose={() => setIsVoiceGuideOpen(false)}
+        onNavigateTab={(newTab, targetId) => {
+          setTab(newTab)
+          if (targetId) {
+            setTimeout(() => {
+              document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth' })
+            }, 300)
+          }
+        }}
+      />
     </div>
   )
 }

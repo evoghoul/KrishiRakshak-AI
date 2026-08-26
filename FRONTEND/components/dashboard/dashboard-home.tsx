@@ -182,13 +182,17 @@ export function DashboardHome({ onNavigate }: { onNavigate?: (tab: any) => void 
   const handleGovSchemesClick = () => {
     if (onNavigate) {
       onNavigate('grow')
-      // Give React a tiny fraction of a second to render the new tab, then seamlessly slide down!
       setTimeout(() => {
-        window.scrollTo({
-          top: document.body.scrollHeight,
-          behavior: 'smooth'
-        })
-      }, 150)
+        const el = document.getElementById('gov-schemes-section')
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        } else {
+          window.scrollTo({
+            top: document.body.scrollHeight,
+            behavior: 'smooth',
+          })
+        }
+      }, 200)
     }
   }
 

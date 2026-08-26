@@ -23,9 +23,10 @@ const NAV_ITEMS: NavItem[] = [
 interface DashboardSidebarProps {
   active: DashboardTab
   onChange: (tab: DashboardTab) => void
+  onOpenVoiceGuide?: () => void
 }
 
-export function DashboardSidebar({ active, onChange }: DashboardSidebarProps) {
+export function DashboardSidebar({ active, onChange, onOpenVoiceGuide }: DashboardSidebarProps) {
   return (
     <aside className="sticky top-0 flex h-svh w-72 shrink-0 flex-col border-r border-border bg-card">
       <div className="flex h-20 items-center px-6">
@@ -76,7 +77,8 @@ export function DashboardSidebar({ active, onChange }: DashboardSidebarProps) {
       <div className="p-4">
         <button
           type="button"
-          className="animate-guide-glow flex w-full items-center gap-3 rounded-2xl bg-primary px-4 py-4 text-left text-primary-foreground transition-transform hover:scale-[1.02]"
+          onClick={onOpenVoiceGuide}
+          className="animate-guide-glow flex w-full items-center gap-3 rounded-2xl bg-primary px-4 py-4 text-left text-primary-foreground transition-all hover:scale-[1.02] active:scale-95 shadow-md"
         >
           <span className="relative flex size-11 shrink-0 items-center justify-center rounded-full bg-primary-foreground/15">
             <span className="animate-mic-ring absolute inset-0 rounded-full bg-primary-foreground/30" />
