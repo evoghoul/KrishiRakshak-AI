@@ -14,9 +14,8 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
 from langchain_core.messages import HumanMessage
+
 
 # ==========================================
 # API KEYS CONFIGURATION
@@ -109,12 +108,27 @@ class SchemeInput(BaseModel):
 
 @tool(args_schema=SchemeInput)
 def check_gov_schemes(query: str) -> str:
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    db_folder = os.path.join(base_dir, "chroma_db")
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    db = Chroma(persist_directory=db_folder, embedding_function=embeddings)
-    docs = db.similarity_search(query, k=3)
-    return "\n".join([doc.page_content for doc in docs])
+    try:
+        from langchain_huggingface import HuggingFaceEmbeddings
+        from langchain_chroma import Chroma
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        db_folder = os.path.join(base_dir, "chroma_db")
+        if os.path.exists(db_folder):
+            embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+            db = Chroma(persist_directory=db_folder, embedding_function=embeddings)
+            docs = db.similarity_search(query, k=3)
+            if docs:
+                return "\n".join([doc.page_content for doc in docs])
+    except Exception as e:
+        print(f"RAG Notice (using curated data): {e}")
+
+    # Curated knowledge fallback
+    return (
+        "1. PM-Kisan Samman Nidhi: Rs. 6,000/year direct financial support in 3 equal installments to eligible farmer families.\n"
+        "2. Pradhan Mantri Fasal Bima Yojana (PMFBY): Comprehensive crop insurance against non-preventable natural risks from pre-sowing to post-harvest.\n"
+        "3. Sub-Mission on Agricultural Mechanization (SMAM): 40-50% subsidy for purchasing modern farm equipment, tractors, and harvest machinery.\n"
+        "4. PM Krishi Sinchayee Yojana (PMKSY): Subsidies for micro-irrigation systems (Drip and Sprinkler) to save water and improve crop yields."
+    )
 
 # ==========================================
 # TOOL 2: Live Real-Time Weather API
