@@ -5,6 +5,9 @@ import requests
 import json
 import base64
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI(title="KrishiRakshak API")
 
@@ -18,8 +21,8 @@ app.add_middleware(
 )
 
 # API Keys
-OPENWEATHER_API_KEY = "6d1b49b20cbc1bab5e041db96acebe7e"
-
+OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
+DATA_GOV_API_KEY = os.getenv("DATA_GOV_API_KEY")
 # ==========================================
 # 1. LIVE WEATHER ENDPOINT (For Home Page)
 # ==========================================
@@ -83,32 +86,86 @@ async def get_dashboard_weather(location: str = "Vadlamudi"):
 @app.get("/api/prices")
 async def get_live_prices():
     try:
-        api_key = "579b464db66ec23bdd000001fef620c00ca044786dbfe716c33a606f"
-        resource_id = "35985678-0d79-46b4-9ed6-6f13308a1d24"
-        url = f"https://api.data.gov.in/resource/{resource_id}?api-key={api_key}&format=json&limit=10&filters[state]=Andhra%20Pradesh"
+        api_key = os.getenv("DATA_GOV_API_KEY")
 
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req) as response:
+        if not api_key:
+            raise Exception("DATA_GOV_API_KEY is not configured")
+
+        resource_id = "35985678-0d79-46b4-9ed6-6f13308a1d24"
+
+        url = (
+            f"https://api.data.gov.in/resource/{resource_id}"
+            f"?api-key={api_key}"
+            f"&format=json"
+            f"&limit=50"
+            f"&filters[state]=Andhra%20Pradesh"
+        )
+
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "KrishiRakshak/1.0"}
+        )
+
+        with urllib.request.urlopen(req, timeout=15) as response:
             data = json.loads(response.read().decode())
 
+        records = data.get("records", [])
+        print("RAW RECORD:")
+        print(records[0] if records else "NO RECORDS")
+
+        if not records:
+            return {
+                "status": "success",
+                "source": "data.gov.in",
+                "count": 0,
+                "data": []
+            }
+
         market_data = []
-        if "records" in data:
-            for record in data["records"]:
-                market_data.append({
-                    "crop": record.get("commodity", "Unknown"),
-                    "variety": record.get("variety", "Standard"),
-                    "market": record.get("market", "AP Market"),
-                    "price": float(record.get("modal_price", 0)),
-                    "unit": "quintal",
-                    "change": 1.2, 
-                    "trend": "up"
-                })
-        if not market_data:
-            raise Exception("No records found")
-        return market_data
+
+        for record in records:
+            def to_number(value):
+                try:
+                    return float(str(value).replace(",", "").strip())
+                except (ValueError, TypeError):
+                    return None
+
+            modal_price = to_number(record.get("modal_price"))
+            min_price = to_number(record.get("min_price"))
+            max_price = to_number(record.get("max_price"))
+
+            market_data.append({
+                "crop": record.get("commodity"),
+                "variety": record.get("variety"),
+                "market": record.get("market"),
+                "district": record.get("district"),
+                "state": record.get("state"),
+                "min_price": min_price,
+                "max_price": max_price,
+                "modal_price": modal_price,
+                "unit": "quintal",
+                "arrival_date": record.get("arrival_date"),
+                "source": "Government of India - data.gov.in",
+                "change": None,
+                "trend": None
+            })
+
+        return {
+            "status": "success",
+            "source": "Government of India - data.gov.in",
+            "count": len(market_data),
+            "data": market_data
+        }
+
     except Exception as e:
         print(f"Error fetching mandi prices: {e}")
-        return {"error": "Failed to fetch live data"}
+
+        return {
+            "status": "error",
+            "source": "Government of India - data.gov.in",
+            "message": "Unable to fetch current mandi data"
+        }
+
 
 # ==========================================
 # 3. DEDICATED IMAGE SCANNER ENDPOINT
