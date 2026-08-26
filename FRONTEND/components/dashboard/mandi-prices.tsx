@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { TrendingUp, TrendingDown, Minus, Search, RefreshCw, BarChart2, X, ExternalLink, ShieldCheck, MapPin } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, Search, RefreshCw, BarChart2, X, ExternalLink, ShieldCheck, MapPin, AlertCircle, AlertTriangle } from 'lucide-react'
 
 type Trend = 'up' | 'down' | 'flat'
 
@@ -30,21 +30,31 @@ export function MandiPrices() {
   const [query, setQuery] = useState('')
   const [marketData, setMarketData] = useState<MandiRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [apiError, setApiError] = useState<string | null>(null)
   const [selectedCrop, setSelectedCrop] = useState<MandiRow | null>(null)
 
   const fetchLivePrices = async () => {
     setIsLoading(true)
+    setApiError(null)
     try {
       const response = await fetch('http://localhost:8000/api/prices')
       const result = await response.json()
 
-      if (result && Array.isArray(result.data)) {
+      if (result && result.status === 'error') {
+        setApiError(result.error_message || 'Unknown Agmarknet API error from backend')
+        setMarketData([])
+      } else if (result && Array.isArray(result.data)) {
         setMarketData(result.data)
+        setApiError(null)
       } else if (Array.isArray(result)) {
         setMarketData(result)
+        setApiError(null)
+      } else {
+        setApiError('Unexpected response format from Mandi Prices API')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch live prices:', error)
+      setApiError(`Backend Connection Failed: ${error.message || error}`)
     } finally {
       setIsLoading(false)
     }
@@ -81,6 +91,23 @@ export function MandiPrices() {
         </div>
       </div>
 
+      {/* Prominent Real-time API Error Banner */}
+      {apiError && (
+        <div className="mt-4 flex items-start gap-3 rounded-2xl border border-destructive/50 bg-destructive/10 p-4 text-destructive animate-in fade-in">
+          <AlertCircle className="size-5 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="font-extrabold text-sm text-destructive">Agmarknet API Failed</h3>
+            <p className="mt-1 font-mono text-xs break-all text-destructive/90">{apiError}</p>
+          </div>
+          <button
+            onClick={fetchLivePrices}
+            className="rounded-lg bg-destructive/20 hover:bg-destructive/30 px-3 py-1.5 text-xs font-bold text-destructive transition-colors shrink-0"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       <div className="mt-4 flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 focus-within:border-primary transition-colors">
         <Search className="size-4 text-muted-foreground" aria-hidden="true" />
         <input
@@ -113,7 +140,17 @@ export function MandiPrices() {
                 </td>
               </tr>
             )}
-            {!isLoading && filtered.map((row, index) => {
+            {!isLoading && apiError && marketData.length === 0 && (
+              <tr>
+                <td colSpan={4} className="py-8 text-center text-sm text-destructive font-medium bg-destructive/5 rounded-xl">
+                  <div className="flex flex-col items-center justify-center gap-1.5">
+                    <AlertTriangle className="size-5 text-destructive" />
+                    <span>API Failed: {apiError}</span>
+                  </div>
+                </td>
+              </tr>
+            )}
+            {!isLoading && !apiError && filtered.map((row, index) => {
               const trendType = row.trend || (row.change > 0 ? 'up' : row.change < 0 ? 'down' : 'flat')
               const t = TREND_STYLES[trendType]
               const Icon = t.icon
@@ -144,7 +181,7 @@ export function MandiPrices() {
                 </tr>
               )
             })}
-            {!isLoading && filtered.length === 0 && (
+            {!isLoading && !apiError && filtered.length === 0 && (
               <tr>
                 <td colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
                   No markets match &quot;{query}&quot;.
