@@ -407,10 +407,12 @@ async def voice_guide_intent(req: VoiceGuideRequest):
     gemini_api_key = os.getenv("GEMINI_API_KEY", "").strip() or os.getenv("GOOGLE_API_KEY", "").strip()
 
     if gemini_api_key and len(gemini_api_key) > 20:
-        try:
-            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={gemini_api_key}"
-            
-            prompt = f"""You are KrishiRakshak Multilingual AI Voice Assistant for Indian farmers.
+        models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash", "gemini-3.6-flash"]
+        for model_name in models_to_try:
+            try:
+                gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={gemini_api_key}"
+                
+                prompt = f"""You are KrishiRakshak Multilingual AI Voice Assistant for Indian farmers.
 The farmer has spoken the following query in their native language:
 \"\"\"{query}\"\"\"
 
@@ -444,27 +446,26 @@ Output MUST be strictly a single valid JSON object:
   "spoken_response": "1-2 sentence spoken answer in the farmer's language"
 }}"""
 
-            payload = {
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {
-                    "temperature": 0.1,
-                    "response_mime_type": "application/json"
+                payload = {
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {
+                        "temperature": 0.1,
+                        "response_mime_type": "application/json"
+                    }
                 }
-            }
 
-            res = requests.post(gemini_url, json=payload, timeout=15)
-            if res.status_code == 200:
-                data = res.json()
-                text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                parsed = json.loads(text)
-                return {
-                    "status": "success",
-                    "data": parsed
-                }
-            else:
-                print(f"[Voice Guide Gemini API Error] {res.status_code}: {res.text}")
-        except Exception as e:
-            print(f"[Voice Guide Exception]: {e}")
+                res = requests.post(gemini_url, json=payload, timeout=12)
+                if res.status_code == 200:
+                    data = res.json()
+                    text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    parsed = json.loads(text)
+                    return {
+                        "status": "success",
+                        "data": parsed
+                    }
+            except Exception as e:
+                print(f"[Voice Guide {model_name} Exception]: {e}")
+                continue
 
     # Fallback heuristic if API unavailable
     q_low = query.lower()

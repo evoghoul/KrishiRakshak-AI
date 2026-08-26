@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { Users, Gift, TrendingUp, X, CheckCircle2, Plus, Sparkles, ShieldCheck } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Users, Gift, TrendingUp, X, CheckCircle2, Plus, Sparkles, ShieldCheck, Loader2 } from 'lucide-react'
+import { db } from '@/lib/firebase'
+import { collection, onSnapshot, doc, setDoc, updateDoc, addDoc } from 'firebase/firestore'
 
-type Pool = {
+export type Pool = {
   id: string
   crop: string
   village: string
@@ -15,14 +17,15 @@ type Pool = {
   bonusPercent: number
 }
 
-const INITIAL_POOLS: Pool[] = [
-  { id: '1', crop: 'Chilli', village: 'Vadlamudi', locked: 18, target: 25, unit: 'Tons', bonus: '12%', bonusPercent: 12, members: 14 },
-  { id: '2', crop: 'Turmeric', village: 'Duggirala', locked: 9, target: 20, unit: 'Tons', bonus: '9%', bonusPercent: 9, members: 8 },
-  { id: '3', crop: 'Paddy', village: 'Tenali', locked: 42, target: 50, unit: 'Tons', bonus: '7%', bonusPercent: 7, members: 23 },
+const DEFAULT_POOLS: Pool[] = [
+  { id: 'p1', crop: 'Chilli', village: 'Vadlamudi', locked: 18, target: 25, unit: 'Tons', bonus: '12%', bonusPercent: 12, members: 14 },
+  { id: 'p2', crop: 'Turmeric', village: 'Duggirala', locked: 9, target: 20, unit: 'Tons', bonus: '9%', bonusPercent: 9, members: 8 },
+  { id: 'p3', crop: 'Paddy', village: 'Tenali', locked: 42, target: 50, unit: 'Tons', bonus: '7%', bonusPercent: 7, members: 23 },
 ]
 
 export function GroupAggregation() {
-  const [pools, setPools] = useState<Pool[]>(INITIAL_POOLS)
+  const [pools, setPools] = useState<Pool[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [lockModalPool, setLockModalPool] = useState<Pool | null>(null)
   const [newPoolModalOpen, setNewPoolModalOpen] = useState(false)
   const [lockedAmount, setLockedAmount] = useState('2.5')
@@ -34,22 +37,88 @@ export function GroupAggregation() {
   const [newTarget, setNewTarget] = useState('30')
   const [newBonus, setNewBonus] = useState('10')
 
-  const handleConfirmLock = (e: React.FormEvent) => {
+  // Real-time Firestore Sync for Community Pools
+  useEffect(() => {
+    let unsubscribe: () => void
+
+    try {
+      const poolsCol = collection(db, 'community_pools')
+      unsubscribe = onSnapshot(
+        poolsCol,
+        async (snapshot) => {
+          if (!snapshot.empty) {
+            const fetched = snapshot.docs.map((d) => ({
+              id: d.id,
+              ...(d.data() as Omit<Pool, 'id'>)
+            }))
+            setPools(fetched)
+            setIsLoading(false)
+          } else {
+            // Seed Firestore if empty on first boot
+            setPools(DEFAULT_POOLS)
+            setIsLoading(false)
+            try {
+              for (const p of DEFAULT_POOLS) {
+                await setDoc(doc(db, 'community_pools', p.id), p)
+              }
+            } catch (seedErr) {
+              console.warn('Firestore pool seed notice:', seedErr)
+            }
+          }
+        },
+        (error) => {
+          console.warn('Firestore pools listener error, using default pools:', error)
+          setPools(DEFAULT_POOLS)
+          setIsLoading(false)
+        }
+      )
+    } catch (err) {
+      console.warn('Firestore pools connection notice:', err)
+      setPools(DEFAULT_POOLS)
+      setIsLoading(false)
+    }
+
+    return () => {
+      if (unsubscribe) unsubscribe()
+    }
+  }, [])
+
+  const handleConfirmLock = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!lockModalPool) return
 
     const amountNum = parseFloat(lockedAmount) || 1
-    setPools(prev => prev.map(p => {
-      if (p.id === lockModalPool.id) {
-        const updatedLocked = Math.min(p.target, p.locked + amountNum)
-        return {
-          ...p,
-          locked: parseFloat(updatedLocked.toFixed(1)),
-          members: p.members + 1
-        }
-      }
-      return p
-    }))
+    const updatedLocked = parseFloat(Math.min(lockModalPool.target, lockModalPool.locked + amountNum).toFixed(1))
+    const updatedMembers = lockModalPool.members + 1
+
+    // Optimistic local state update
+    setPools((prev) =>
+      prev.map((p) =>
+        p.id === lockModalPool.id
+          ? { ...p, locked: updatedLocked, members: updatedMembers }
+          : p
+      )
+    )
+
+    // Sync to Firestore in real time
+    try {
+      await updateDoc(doc(db, 'community_pools', lockModalPool.id), {
+        locked: updatedLocked,
+        members: updatedMembers
+      })
+
+      // Also record contribution document
+      await addDoc(collection(db, 'pool_contributions'), {
+        poolId: lockModalPool.id,
+        crop: lockModalPool.crop,
+        village: lockModalPool.village,
+        lockedTons: amountNum,
+        bonusPercent: lockModalPool.bonusPercent,
+        createdAt: new Date().toISOString()
+      })
+    } catch (err) {
+      console.warn('Firestore lock harvest update notice:', err)
+    }
 
     setLockSuccess(true)
     setTimeout(() => {
@@ -58,10 +127,11 @@ export function GroupAggregation() {
     }, 1800)
   }
 
-  const handleCreatePool = (e: React.FormEvent) => {
+  const handleCreatePool = async (e: React.FormEvent) => {
     e.preventDefault()
+    const poolId = `pool_${Date.now()}`
     const created: Pool = {
-      id: Date.now().toString(),
+      id: poolId,
       crop: newCrop,
       village: newVillage,
       locked: 1.5,
@@ -72,8 +142,16 @@ export function GroupAggregation() {
       members: 1
     }
 
-    setPools(prev => [created, ...prev])
+    // Optimistic UI update
+    setPools((prev) => [created, ...prev])
     setNewPoolModalOpen(false)
+
+    // Real-time Firestore write
+    try {
+      await setDoc(doc(db, 'community_pools', poolId), created)
+    } catch (err) {
+      console.warn('Firestore create pool notice:', err)
+    }
   }
 
   return (
@@ -97,59 +175,68 @@ export function GroupAggregation() {
         </button>
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-3">
-        {pools.map((pool) => {
-          const pct = Math.min(100, Math.round((pool.locked / pool.target) * 100))
-          const remaining = Math.max(0, parseFloat((pool.target - pool.locked).toFixed(1)))
-          return (
-            <article key={pool.id} className="rounded-2xl border border-border bg-background p-4 hover:border-primary/40 transition-all flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-extrabold text-foreground">{pool.crop} Community Pool</h3>
-                    <p className="text-xs text-muted-foreground">{pool.village} village</p>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <Loader2 className="size-4 animate-spin text-primary" />
+            <span>Loading live aggregation pools from Firestore...</span>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-5 grid gap-4 lg:grid-cols-3">
+          {pools.map((pool) => {
+            const pct = Math.min(100, Math.round((pool.locked / pool.target) * 100))
+            const remaining = Math.max(0, parseFloat((pool.target - pool.locked).toFixed(1)))
+            return (
+              <article key={pool.id} className="rounded-2xl border border-border bg-background p-4 hover:border-primary/40 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-extrabold text-foreground">{pool.crop} Community Pool</h3>
+                      <p className="text-xs text-muted-foreground">{pool.village} village</p>
+                    </div>
+                    <span className="flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-1 text-xs font-extrabold text-primary">
+                      <Gift className="size-3.5" aria-hidden="true" />
+                      {pool.bonus} bonus
+                    </span>
                   </div>
-                  <span className="flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-1 text-xs font-extrabold text-primary">
-                    <Gift className="size-3.5" aria-hidden="true" />
-                    {pool.bonus} bonus
-                  </span>
+
+                  <div className="mt-4 flex items-end justify-between">
+                    <span className="text-2xl font-black text-foreground">
+                      {pool.locked}
+                      <span className="text-sm font-medium text-muted-foreground">/{pool.target} {pool.unit}</span>
+                    </span>
+                    <span className="text-sm font-extrabold text-primary">{pct}%</span>
+                  </div>
+
+                  <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-secondary" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+                    <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${pct}%` }} />
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1 font-semibold">
+                      <TrendingUp className="size-3.5 text-primary" aria-hidden="true" />
+                      {remaining > 0 ? `${remaining} ${pool.unit} to unlock` : 'Target Achieved!'}
+                    </span>
+                    <span className="font-bold text-foreground">{pool.members} farmers</span>
+                  </div>
                 </div>
 
-                <div className="mt-4 flex items-end justify-between">
-                  <span className="text-2xl font-black text-foreground">
-                    {pool.locked}
-                    <span className="text-sm font-medium text-muted-foreground">/{pool.target} {pool.unit}</span>
-                  </span>
-                  <span className="text-sm font-extrabold text-primary">{pct}%</span>
-                </div>
-
-                <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-secondary" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-                  <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${pct}%` }} />
-                </div>
-
-                <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1 font-semibold">
-                    <TrendingUp className="size-3.5 text-primary" aria-hidden="true" />
-                    {remaining > 0 ? `${remaining} ${pool.unit} to unlock` : 'Target Achieved!'}
-                  </span>
-                  <span className="font-bold text-foreground">{pool.members} farmers</span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setLockModalPool(pool)
-                  setLockSuccess(false)
-                }}
-                className="mt-4 w-full rounded-xl bg-primary py-2.5 text-xs font-extrabold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5"
-              >
-                <Sparkles className="size-3.5" /> Lock my harvest
-              </button>
-            </article>
-          )
-        })}
-      </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLockModalPool(pool)
+                    setLockSuccess(false)
+                  }}
+                  className="mt-4 w-full rounded-xl bg-primary py-2.5 text-xs font-extrabold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5"
+                >
+                  <Sparkles className="size-3.5" /> Lock my harvest
+                </button>
+              </article>
+            )
+          })}
+        </div>
+      )}
 
       {/* Lock Harvest in Pool Modal */}
       {lockModalPool && (

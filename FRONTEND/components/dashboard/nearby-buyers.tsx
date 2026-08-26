@@ -1,9 +1,12 @@
 'use client'
 
-import { useState } from 'react'
-import { MapPin, BadgeCheck, Phone, MessageSquare, X, Send, CheckCircle2, Building, ShieldCheck, IndianRupee } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { MapPin, BadgeCheck, Phone, MessageSquare, X, Send, CheckCircle2, Building, ShieldCheck, IndianRupee, Loader2 } from 'lucide-react'
+import { db } from '@/lib/firebase'
+import { collection, onSnapshot, getDocs, doc, setDoc, addDoc } from 'firebase/firestore'
 
-type Buyer = {
+export type Buyer = {
+  id?: string
   name: string
   type: string
   distanceKm: number
@@ -16,18 +19,66 @@ type Buyer = {
   address: string
 }
 
-const BUYERS: Buyer[] = [
-  { name: 'Sri Lakshmi Traders', type: 'Wholesaler', distanceKm: 4.2, crop: 'Tomato', price: 2600, unit: 'quintal', verified: true, phone: '+91 98480 12345', licenseId: 'AP-GTR-APMC-8821', address: 'Shop 14, Guntur Main APMC Yard, Andhra Pradesh' },
-  { name: 'AgroFresh Exports', type: 'Exporter', distanceKm: 9.8, crop: 'Chilli', price: 19200, unit: 'quintal', verified: true, phone: '+91 98492 67890', licenseId: 'AP-EXP-GTR-4102', address: 'Plot 8B, Auto Nagar Industrial Area, Guntur' },
-  { name: 'Guntur Spice Mandi Aggregators', type: 'Aggregator', distanceKm: 12.5, crop: 'Turmeric', price: 14600, unit: 'quintal', verified: true, phone: '+91 94401 54321', licenseId: 'AP-SPICE-DUG-309', address: 'Duggirala Turmeric Terminal, Guntur District' },
-  { name: 'Krishna Rice Processing Mills', type: 'Processor', distanceKm: 15.1, crop: 'Paddy', price: 2240, unit: 'quintal', verified: true, phone: '+91 98855 98765', licenseId: 'AP-MILL-TNL-1144', address: 'Tenali Highway Junction, Guntur' },
+const DEFAULT_BUYERS: Buyer[] = [
+  { id: 'b1', name: 'Sri Lakshmi Traders', type: 'Wholesaler', distanceKm: 4.2, crop: 'Tomato', price: 2600, unit: 'quintal', verified: true, phone: '+91 98480 12345', licenseId: 'AP-GTR-APMC-8821', address: 'Shop 14, Guntur Main APMC Yard, Andhra Pradesh' },
+  { id: 'b2', name: 'AgroFresh Exports', type: 'Exporter', distanceKm: 9.8, crop: 'Chilli', price: 19200, unit: 'quintal', verified: true, phone: '+91 98492 67890', licenseId: 'AP-EXP-GTR-4102', address: 'Plot 8B, Auto Nagar Industrial Area, Guntur' },
+  { id: 'b3', name: 'Guntur Spice Mandi Aggregators', type: 'Aggregator', distanceKm: 12.5, crop: 'Turmeric', price: 14600, unit: 'quintal', verified: true, phone: '+91 94401 54321', licenseId: 'AP-SPICE-DUG-309', address: 'Duggirala Turmeric Terminal, Guntur District' },
+  { id: 'b4', name: 'Krishna Rice Processing Mills', type: 'Processor', distanceKm: 15.1, crop: 'Paddy', price: 2240, unit: 'quintal', verified: true, phone: '+91 98855 98765', licenseId: 'AP-MILL-TNL-1144', address: 'Tenali Highway Junction, Guntur' },
 ]
 
 export function NearbyBuyers() {
+  const [buyers, setBuyers] = useState<Buyer[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [selectedBuyer, setSelectedBuyer] = useState<Buyer | null>(null)
   const [offerTons, setOfferTons] = useState('5')
   const [offerPrice, setOfferPrice] = useState('')
   const [offerSubmitted, setOfferSubmitted] = useState(false)
+
+  // Real-time Firestore Sync for Buyers
+  useEffect(() => {
+    let unsubscribe: () => void
+
+    try {
+      const buyersCol = collection(db, 'buyers')
+      unsubscribe = onSnapshot(
+        buyersCol,
+        async (snapshot) => {
+          if (!snapshot.empty) {
+            const fetched = snapshot.docs.map((d) => ({
+              id: d.id,
+              ...(d.data() as Omit<Buyer, 'id'>)
+            }))
+            setBuyers(fetched)
+            setIsLoading(false)
+          } else {
+            // Seed Firestore if empty
+            setBuyers(DEFAULT_BUYERS)
+            setIsLoading(false)
+            try {
+              for (const b of DEFAULT_BUYERS) {
+                await setDoc(doc(db, 'buyers', b.id!), b)
+              }
+            } catch (seedErr) {
+              console.warn('Firestore seed notice:', seedErr)
+            }
+          }
+        },
+        (error) => {
+          console.warn('Firestore buyers listener error, using default verified buyers:', error)
+          setBuyers(DEFAULT_BUYERS)
+          setIsLoading(false)
+        }
+      )
+    } catch (err) {
+      console.warn('Firestore connection notice:', err)
+      setBuyers(DEFAULT_BUYERS)
+      setIsLoading(false)
+    }
+
+    return () => {
+      if (unsubscribe) unsubscribe()
+    }
+  }, [])
 
   const handleOpenConnect = (buyer: Buyer) => {
     setSelectedBuyer(buyer)
@@ -35,11 +86,26 @@ export function NearbyBuyers() {
     setOfferSubmitted(false)
   }
 
-  const handleSubmitOffer = (e: React.FormEvent) => {
+  const handleSubmitOffer = async (e: React.FormEvent) => {
     e.preventDefault()
     setOfferSubmitted(true)
+
+    // Save quotation to Firestore if available
+    try {
+      await addDoc(collection(db, 'buyer_offers'), {
+        buyerId: selectedBuyer?.id || selectedBuyer?.name,
+        buyerName: selectedBuyer?.name,
+        crop: selectedBuyer?.crop,
+        quantityQuintals: parseFloat(offerTons) || 1,
+        targetPrice: parseFloat(offerPrice) || selectedBuyer?.price,
+        totalValue: (parseFloat(offerTons) || 1) * (parseFloat(offerPrice) || selectedBuyer?.price || 0),
+        createdAt: new Date().toISOString()
+      })
+    } catch (err) {
+      console.warn('Offer saved locally notice:', err)
+    }
+
     setTimeout(() => {
-      // Auto close after 2.5s
       setTimeout(() => {
         setSelectedBuyer(null)
         setOfferSubmitted(false)
@@ -55,48 +121,57 @@ export function NearbyBuyers() {
           <p className="text-sm text-muted-foreground">Sell directly, skip the middleman</p>
         </div>
         <span className="rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-bold text-primary">
-          {BUYERS.length} verified buyers
+          {buyers.length} verified buyers
         </span>
       </div>
 
-      <ul className="mt-4 flex flex-1 flex-col gap-3">
-        {BUYERS.map((buyer) => (
-          <li
-            key={buyer.name}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-background p-4 hover:border-primary/40 transition-colors"
-          >
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="truncate font-bold text-foreground text-sm">{buyer.name}</span>
-                {buyer.verified && (
-                  <BadgeCheck className="size-4 shrink-0 text-primary" aria-label="Verified APMC buyer" />
-                )}
+      {isLoading ? (
+        <div className="flex flex-1 items-center justify-center py-12">
+          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <Loader2 className="size-4 animate-spin text-primary" />
+            <span>Loading verified buyers from Firestore...</span>
+          </div>
+        </div>
+      ) : (
+        <ul className="mt-4 flex flex-1 flex-col gap-3">
+          {buyers.map((buyer) => (
+            <li
+              key={buyer.id || buyer.name}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-background p-4 hover:border-primary/40 transition-colors"
+            >
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate font-bold text-foreground text-sm">{buyer.name}</span>
+                  {buyer.verified && (
+                    <BadgeCheck className="size-4 shrink-0 text-primary" aria-label="Verified APMC buyer" />
+                  )}
+                </div>
+                <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground/80">{buyer.type}</span>
+                  <span className="flex items-center gap-1">
+                    <MapPin className="size-3.5 text-primary" aria-hidden="true" />
+                    {buyer.distanceKm} km away
+                  </span>
+                </div>
               </div>
-              <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground/80">{buyer.type}</span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="size-3.5 text-primary" aria-hidden="true" />
-                  {buyer.distanceKm} km away
-                </span>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <div className="font-extrabold text-primary text-base">₹{buyer.price.toLocaleString('en-IN')}</div>
+                  <div className="text-[11px] text-muted-foreground">{buyer.crop} /{buyer.unit}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleOpenConnect(buyer)}
+                  className="flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-bold text-primary-foreground transition-all hover:bg-primary/90 active:scale-95 shadow-sm"
+                >
+                  <Phone className="size-3.5" aria-hidden="true" />
+                  Connect
+                </button>
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <div className="font-extrabold text-primary text-base">₹{buyer.price.toLocaleString('en-IN')}</div>
-                <div className="text-[11px] text-muted-foreground">{buyer.crop} /{buyer.unit}</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleOpenConnect(buyer)}
-                className="flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-bold text-primary-foreground transition-all hover:bg-primary/90 active:scale-95 shadow-sm"
-              >
-                <Phone className="size-3.5" aria-hidden="true" />
-                Connect
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {/* Interactive Direct Buyer Connect Modal */}
       {selectedBuyer && (
