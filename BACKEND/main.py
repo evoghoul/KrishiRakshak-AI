@@ -1,13 +1,27 @@
-from fastapi import FastAPI, File, UploadFile, Form
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import urllib.request
 import requests
 import json
 import base64
 import os
+import random
+import time
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# ==========================================
+# In-Memory OTP Store (Phone -> {otp, expiry})
+# OTPs expire after 10 minutes
+# ==========================================
+otp_store: dict = {}
+FAST2SMS_API_KEY = "5pvgfIaUMFdO0Hxis86tSLVXPy2lqmk7BRZuz1WjcCrJbDGenAs8VOiNLJ6zcUtYThZ7Wvxf5bISPlKa"
+
+class OTPVerifyRequest(BaseModel):
+    phone: str
+    otp: str
 
 app = FastAPI(title="KrishiRakshak API")
 
@@ -23,6 +37,75 @@ app.add_middleware(
 # API Keys
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 DATA_GOV_API_KEY = os.getenv("DATA_GOV_API_KEY")
+
+# ==========================================
+# OTP SEND ENDPOINT (Real SMS via Fast2SMS)
+# ==========================================
+@app.post("/api/send-otp")
+async def send_otp(phone: str):
+    """Send a real 6-digit OTP SMS to the given Indian mobile number via Fast2SMS."""
+    # Validate phone
+    clean = phone.replace(" ", "").replace("+91", "").replace("-", "")
+    if not clean.isdigit() or len(clean) != 10 or clean[0] not in "6789":
+        raise HTTPException(status_code=400, detail="Invalid Indian mobile number.")
+
+    # Generate secure 6-digit OTP
+    otp = str(random.randint(100000, 999999))
+
+    # Send via Fast2SMS Quick SMS (OTP route)
+    try:
+        url = "https://www.fast2sms.com/dev/bulkV2"
+        params = {
+            "authorization": FAST2SMS_API_KEY,
+            "route": "otp",
+            "variables_values": otp,
+            "flash": "0",
+            "numbers": clean,
+        }
+        resp = requests.get(url, params=params, timeout=10)
+        resp_json = resp.json()
+
+        if resp_json.get("return") is not True:
+            # Fast2SMS returned an error
+            raise HTTPException(
+                status_code=502,
+                detail=f"SMS gateway error: {resp_json.get('message', resp.text)}"
+            )
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=503, detail=f"SMS service unreachable: {str(e)}")
+
+    # Store OTP with 10-minute expiry
+    otp_store[clean] = {
+        "otp": otp,
+        "expiry": time.time() + 600,  # 10 minutes
+    }
+
+    return {"status": "success", "message": f"OTP sent to +91 {clean}"}
+
+
+# ==========================================
+# OTP VERIFY ENDPOINT
+# ==========================================
+@app.post("/api/verify-otp")
+async def verify_otp(body: OTPVerifyRequest):
+    """Verify the OTP entered by the user against the stored value."""
+    clean = body.phone.replace(" ", "").replace("+91", "").replace("-", "")
+    entered = body.otp.strip()
+
+    record = otp_store.get(clean)
+    if not record:
+        raise HTTPException(status_code=400, detail="OTP not found or expired. Please request a new one.")
+
+    if time.time() > record["expiry"]:
+        del otp_store[clean]
+        raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
+
+    if entered != record["otp"]:
+        raise HTTPException(status_code=400, detail="Incorrect OTP. Please try again.")
+
+    # OTP is valid — delete it so it can't be reused
+    del otp_store[clean]
+    return {"status": "success", "message": "Phone verified successfully."}
 # ==========================================
 # 1. LIVE WEATHER ENDPOINT (For Home Page)
 # ==========================================

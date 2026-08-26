@@ -153,20 +153,7 @@ export default function Page() {
     if (phoneError) setPhoneError('')
   }
 
-  const setupRecaptcha = () => {
-    if (typeof window !== 'undefined') {
-      if (!(window as any).recaptchaVerifier) {
-        (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-          callback: () => {},
-        })
-      }
-      return (window as any).recaptchaVerifier
-    }
-    return null
-  }
-
-  // Send OTP for Phone with strict validation & Firebase Phone Auth
+  // Send Real SMS OTP via Fast2SMS Backend
   const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setPhoneError('')
@@ -182,41 +169,31 @@ export default function Page() {
     }
 
     setIsSendingOtp(true)
-    const formattedPhone = `+91${phoneNumber}`
 
-    // Attempt Firebase Real SMS dispatch
     try {
-      if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
-        const appVerifier = setupRecaptcha()
-        if (appVerifier) {
-          const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier)
-          setConfirmationResult(confirmation)
-          setGeneratedOtp('')
-          setOtpDigits(['', '', '', '', '', ''])
-          setOtpError('')
-          setResendTimer(60)
-          setIsSendingOtp(false)
-          setAppState('otp')
-          setShowSimulatedSms(false)
-          setTimeout(() => otpInputRefs.current[0]?.focus(), 150)
-          return
-        }
-      }
-    } catch (err: any) {
-      console.warn("Firebase Phone Auth notice (using fallback alert):", err)
-    }
+      const res = await fetch(`http://localhost:8000/api/send-otp?phone=${phoneNumber}`, {
+        method: 'POST',
+      })
+      const data = await res.json()
 
-    // Fallback: local 6-digit code with on-screen SMS toast banner
-    const newOtp = Math.floor(100000 + Math.random() * 900000).toString()
-    setGeneratedOtp(newOtp)
-    setConfirmationResult(null)
-    setOtpDigits(['', '', '', '', '', ''])
-    setOtpError('')
-    setResendTimer(60)
-    setIsSendingOtp(false)
-    setAppState('otp')
-    setShowSimulatedSms(true)
-    setTimeout(() => otpInputRefs.current[0]?.focus(), 150)
+      if (!res.ok) {
+        throw new Error(data.detail || 'Failed to send OTP')
+      }
+
+      // OTP sent successfully via real SMS — go to OTP screen
+      setConfirmationResult(null)
+      setGeneratedOtp('')
+      setShowSimulatedSms(false)
+      setOtpDigits(['', '', '', '', '', ''])
+      setOtpError('')
+      setResendTimer(60)
+      setIsSendingOtp(false)
+      setAppState('otp')
+      setTimeout(() => otpInputRefs.current[0]?.focus(), 150)
+    } catch (err: any) {
+      setIsSendingOtp(false)
+      setPhoneError(`Could not send OTP: ${err.message}. Make sure backend is running.`)
+    }
   }
 
   // Send OTP for Email with strict regex validation
@@ -245,29 +222,33 @@ export default function Page() {
     }, 600)
   }
 
-  // Resend OTP generator
+  // Resend Real SMS OTP via Fast2SMS Backend
   const handleResendOtp = async () => {
     if (resendTimer > 0) return
     setIsSendingOtp(true)
 
-    if (authMode === 'phone' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+    if (authMode === 'phone') {
       try {
-        const appVerifier = setupRecaptcha()
-        if (appVerifier) {
-          const confirmation = await signInWithPhoneNumber(auth, `+91${phoneNumber}`, appVerifier)
-          setConfirmationResult(confirmation)
-          setOtpDigits(['', '', '', '', '', ''])
-          setOtpError('')
-          setResendTimer(60)
-          setIsSendingOtp(false)
-          setTimeout(() => otpInputRefs.current[0]?.focus(), 150)
-          return
-        }
+        const res = await fetch(`http://localhost:8000/api/send-otp?phone=${phoneNumber}`, {
+          method: 'POST',
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.detail || 'Failed')
+
+        setOtpDigits(['', '', '', '', '', ''])
+        setOtpError('')
+        setResendTimer(60)
+        setIsSendingOtp(false)
+        setTimeout(() => otpInputRefs.current[0]?.focus(), 150)
+        return
       } catch (err: any) {
-        console.warn("Firebase Resend notice:", err)
+        setIsSendingOtp(false)
+        setOtpError(`Resend failed: ${err.message}`)
+        return
       }
     }
 
+    // Email resend fallback (on-screen)
     const newOtp = Math.floor(100000 + Math.random() * 900000).toString()
     setGeneratedOtp(newOtp)
     setOtpDigits(['', '', '', '', '', ''])
@@ -366,7 +347,7 @@ export default function Page() {
     otpInputRefs.current[5]?.focus()
   }
 
-  // Verify OTP submission (Firebase Confirmation or Local Check)
+  // Verify OTP submission (Fast2SMS Backend or Email local check)
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault()
     setOtpError('')
@@ -379,45 +360,56 @@ export default function Page() {
 
     setIsVerifyingOtp(true)
 
-    // Check if Firebase confirmationResult is active
-    if (confirmationResult) {
+    if (authMode === 'phone') {
+      // Verify via backend (Fast2SMS OTP)
       try {
-        const result = await confirmationResult.confirm(entered)
-        const user = result.user
-        const userDisplay = user.displayName || `Farmer (+91 ${phoneNumber})`
+        const res = await fetch('http://localhost:8000/api/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phoneNumber, otp: entered }),
+        })
+        const data = await res.json()
+
+        if (!res.ok) {
+          setIsVerifyingOtp(false)
+          setOtpError(data.detail || 'Invalid OTP. Please try again.')
+          return
+        }
+
+        // Phone verified successfully!
         const userInfo = {
-          name: userDisplay,
-          initial: (userDisplay || 'A').charAt(0).toUpperCase(),
+          name: `Farmer`,
+          initial: 'F',
           address: userData.address || 'Vadlamudi, Andhra Pradesh',
-          phoneOrEmail: user.phoneNumber || `+91 ${phoneNumber}`,
+          phoneOrEmail: `+91 ${phoneNumber}`,
         }
         setUserData(userInfo)
         localStorage.setItem('krishi_session', JSON.stringify(userInfo))
         setIsVerifyingOtp(false)
         setAppState('dashboard')
         return
-      } catch (error: any) {
+      } catch (err: any) {
         setIsVerifyingOtp(false)
-        setOtpError('Invalid OTP code. Please check your SMS or click Resend.')
+        setOtpError(`Verification failed: ${err.message}`)
         return
       }
     }
 
+    // Email OTP - local check (simulated)
     if (entered !== generatedOtp) {
       setIsVerifyingOtp(false)
-      setOtpError('Incorrect OTP. Please enter the valid 6-digit code shown in the alert or click Resend.')
+      setOtpError('Incorrect OTP. Please check the code shown above or click Resend.')
       return
     }
 
     setTimeout(() => {
       setIsVerifyingOtp(false)
-      const userDisplay = authMode === 'phone' ? `Farmer (${phoneNumber.slice(0, 5)} ${phoneNumber.slice(5)})` : emailAddress.split('@')[0]
-      const userContact = authMode === 'phone' ? `+91 ${phoneNumber}` : emailAddress
+      const userDisplay = emailAddress.split('@')[0]
       const userInfo = {
         name: userDisplay,
         initial: (userDisplay || 'A').charAt(0).toUpperCase(),
         address: userData.address || 'Vadlamudi, Andhra Pradesh',
-        phoneOrEmail: userContact,
+        phoneOrEmail: emailAddress,
       }
       setUserData(userInfo)
       localStorage.setItem('krishi_session', JSON.stringify(userInfo))
