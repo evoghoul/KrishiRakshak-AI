@@ -144,6 +144,8 @@ export default function Page() {
     return () => clearInterval(interval)
   }, [appState, resendTimer])
 
+  const [confirmationResult, setConfirmationResult] = useState<any>(null)
+
   // Phone number typing handler: strictly digits only, max 10 chars
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawDigits = e.target.value.replace(/\D/g, '').slice(0, 10)
@@ -151,8 +153,21 @@ export default function Page() {
     if (phoneError) setPhoneError('')
   }
 
-  // Send OTP for Phone with strict validation
-  const handlePhoneSubmit = (e: React.FormEvent) => {
+  const setupRecaptcha = () => {
+    if (typeof window !== 'undefined') {
+      if (!(window as any).recaptchaVerifier) {
+        (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: () => {},
+        })
+      }
+      return (window as any).recaptchaVerifier
+    }
+    return null
+  }
+
+  // Send OTP for Phone with strict validation & Firebase Phone Auth
+  const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setPhoneError('')
 
@@ -167,18 +182,41 @@ export default function Page() {
     }
 
     setIsSendingOtp(true)
-    setTimeout(() => {
-      // Generate 6-digit random code
-      const newOtp = Math.floor(100000 + Math.random() * 900000).toString()
-      setGeneratedOtp(newOtp)
-      setOtpDigits(['', '', '', '', '', ''])
-      setOtpError('')
-      setResendTimer(60)
-      setIsSendingOtp(false)
-      setAppState('otp')
-      setShowSimulatedSms(true)
-      setTimeout(() => otpInputRefs.current[0]?.focus(), 150)
-    }, 600)
+    const formattedPhone = `+91${phoneNumber}`
+
+    // Attempt Firebase Real SMS dispatch
+    try {
+      if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+        const appVerifier = setupRecaptcha()
+        if (appVerifier) {
+          const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier)
+          setConfirmationResult(confirmation)
+          setGeneratedOtp('')
+          setOtpDigits(['', '', '', '', '', ''])
+          setOtpError('')
+          setResendTimer(60)
+          setIsSendingOtp(false)
+          setAppState('otp')
+          setShowSimulatedSms(false)
+          setTimeout(() => otpInputRefs.current[0]?.focus(), 150)
+          return
+        }
+      }
+    } catch (err: any) {
+      console.warn("Firebase Phone Auth notice (using fallback alert):", err)
+    }
+
+    // Fallback: local 6-digit code with on-screen SMS toast banner
+    const newOtp = Math.floor(100000 + Math.random() * 900000).toString()
+    setGeneratedOtp(newOtp)
+    setConfirmationResult(null)
+    setOtpDigits(['', '', '', '', '', ''])
+    setOtpError('')
+    setResendTimer(60)
+    setIsSendingOtp(false)
+    setAppState('otp')
+    setShowSimulatedSms(true)
+    setTimeout(() => otpInputRefs.current[0]?.focus(), 150)
   }
 
   // Send OTP for Email with strict regex validation
@@ -196,6 +234,7 @@ export default function Page() {
     setTimeout(() => {
       const newOtp = Math.floor(100000 + Math.random() * 900000).toString()
       setGeneratedOtp(newOtp)
+      setConfirmationResult(null)
       setOtpDigits(['', '', '', '', '', ''])
       setOtpError('')
       setResendTimer(60)
@@ -207,22 +246,39 @@ export default function Page() {
   }
 
   // Resend OTP generator
-  const handleResendOtp = () => {
+  const handleResendOtp = async () => {
     if (resendTimer > 0) return
     setIsSendingOtp(true)
-    setTimeout(() => {
-      const newOtp = Math.floor(100000 + Math.random() * 900000).toString()
-      setGeneratedOtp(newOtp)
-      setOtpDigits(['', '', '', '', '', ''])
-      setOtpError('')
-      setResendTimer(60)
-      setIsSendingOtp(false)
-      setShowSimulatedSms(true)
-      setTimeout(() => otpInputRefs.current[0]?.focus(), 150)
-    }, 600)
+
+    if (authMode === 'phone' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+      try {
+        const appVerifier = setupRecaptcha()
+        if (appVerifier) {
+          const confirmation = await signInWithPhoneNumber(auth, `+91${phoneNumber}`, appVerifier)
+          setConfirmationResult(confirmation)
+          setOtpDigits(['', '', '', '', '', ''])
+          setOtpError('')
+          setResendTimer(60)
+          setIsSendingOtp(false)
+          setTimeout(() => otpInputRefs.current[0]?.focus(), 150)
+          return
+        }
+      } catch (err: any) {
+        console.warn("Firebase Resend notice:", err)
+      }
+    }
+
+    const newOtp = Math.floor(100000 + Math.random() * 900000).toString()
+    setGeneratedOtp(newOtp)
+    setOtpDigits(['', '', '', '', '', ''])
+    setOtpError('')
+    setResendTimer(60)
+    setIsSendingOtp(false)
+    setShowSimulatedSms(true)
+    setTimeout(() => otpInputRefs.current[0]?.focus(), 150)
   }
 
-  // Handle Google Login
+  // Handle Google Login (Real Firebase Sign-in Popup)
   const handleGoogleLogin = async () => {
     try {
       if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
@@ -310,8 +366,8 @@ export default function Page() {
     otpInputRefs.current[5]?.focus()
   }
 
-  // Verify OTP submission
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  // Verify OTP submission (Firebase Confirmation or Local Check)
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault()
     setOtpError('')
     const entered = otpDigits.join('')
@@ -321,12 +377,38 @@ export default function Page() {
       return
     }
 
+    setIsVerifyingOtp(true)
+
+    // Check if Firebase confirmationResult is active
+    if (confirmationResult) {
+      try {
+        const result = await confirmationResult.confirm(entered)
+        const user = result.user
+        const userDisplay = user.displayName || `Farmer (+91 ${phoneNumber})`
+        const userInfo = {
+          name: userDisplay,
+          initial: (userDisplay || 'A').charAt(0).toUpperCase(),
+          address: userData.address || 'Vadlamudi, Andhra Pradesh',
+          phoneOrEmail: user.phoneNumber || `+91 ${phoneNumber}`,
+        }
+        setUserData(userInfo)
+        localStorage.setItem('krishi_session', JSON.stringify(userInfo))
+        setIsVerifyingOtp(false)
+        setAppState('dashboard')
+        return
+      } catch (error: any) {
+        setIsVerifyingOtp(false)
+        setOtpError('Invalid OTP code. Please check your SMS or click Resend.')
+        return
+      }
+    }
+
     if (entered !== generatedOtp) {
-      setOtpError('Incorrect OTP. Please enter the valid 6-digit code shown in the SMS alert or click Resend.')
+      setIsVerifyingOtp(false)
+      setOtpError('Incorrect OTP. Please enter the valid 6-digit code shown in the alert or click Resend.')
       return
     }
 
-    setIsVerifyingOtp(true)
     setTimeout(() => {
       setIsVerifyingOtp(false)
       const userDisplay = authMode === 'phone' ? `Farmer (${phoneNumber.slice(0, 5)} ${phoneNumber.slice(5)})` : emailAddress.split('@')[0]
@@ -340,7 +422,7 @@ export default function Page() {
       setUserData(userInfo)
       localStorage.setItem('krishi_session', JSON.stringify(userInfo))
       setAppState('dashboard')
-    }, 600)
+    }, 400)
   }
 
   const handleProfileSave = () => {
