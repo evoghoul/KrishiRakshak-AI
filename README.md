@@ -19,9 +19,11 @@ KrishiRakshak is an advanced, multilingual, multimodal agricultural assistant de
 
 * **Frontend:** React / Next.js (Modern web dashboard styled with Tailwind CSS, optimized for desktop and mobile web viewports).
 * **Backend:** Python FastAPI (Lightning-fast API routing and multipart file handling).
-* **AI Brain:** LangGraph & Google Gemini (Multimodal reasoning and native multilingual support).
+* **AI Brain:** LangGraph & Google Gemini (Multimodal reasoning, native multilingual support, and real-time live search grounding).
+* **Voice AI:** Sarvam AI API for ultra-realistic local Indian dialect TTS (Text-to-Speech) and STT.
+* **Offline AI:** Local Llama 3 (via Ollama) for resilient logistics and cost estimations.
 * **Memory & RAG:** ChromaDB and HuggingFace Embeddings (`all-MiniLM-L6-v2`) for local policy/scheme document retrieval.
-* **Live Ingestion:** OpenWeatherMap API for real-time agricultural meteorological risk assessment.
+* **Live Ingestion:** OpenWeatherMap API and Data.gov.in Mandi prices for real-time agricultural risk assessment.
 
 ---
 
@@ -30,15 +32,17 @@ KrishiRakshak is an advanced, multilingual, multimodal agricultural assistant de
 ```text
 KrishiRakshak_App/
 │
-├── backend/                  # Python FastAPI & AI Agent
-│   ├── main.py               # API Server & Endpoints (/api/ask)
+├── BACKEND/                  # Python FastAPI & AI Agent
+│   ├── main.py               # API Server & Endpoints (/api/ask, /api/decision)
 │   ├── agent.py              # LangGraph + Gemini Agent & Tools
 │   ├── rag_setup.py          # ChromaDB Vector Store & PDF Loader
 │   ├── verify_rag.py         # RAG Source Verification Script
+│   ├── offline_ai/           # Local Llama 3 setup & Offline CNN Models
 │   ├── data/                 # Government schemes & agricultural PDFs
 │   └── requirements.txt      # Python dependencies
 │
-└── frontend/                 # Next.js / React Web Application
+└── FRONTEND/                 # Next.js / React Web Application
     ├── app/                  # App router pages & layouts
-    ├── components/           # Modular UI widgets (Cards, Chips, Chat bubbles)
+    ├── components/           # Modular UI widgets (Cards, Chips, Chat bubbles, Dashboards)
     └── public/               # Static assets
+```
