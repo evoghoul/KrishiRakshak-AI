@@ -126,7 +126,7 @@ export default function Page() {
           const notifs: {title: string, msg: string, type: 'urgent'|'info'}[] = []
           
           // Weather alert
-          const wRes = await fetch(`http://127.0.0.1:8000/api/weather?location=${userData.address.split(',')[0]}`)
+          const wRes = await fetch(`/api/weather?location=${userData.address.split(',')[0]}`)
           if (wRes.ok) {
             const wData = await wRes.json()
             if (wData.rain_chance > 50 || wData.temp > 35) {
@@ -139,7 +139,7 @@ export default function Page() {
           }
 
           // Price alert
-          const pRes = await fetch('http://127.0.0.1:8000/api/prices')
+          const pRes = await fetch('/api/prices')
           if (pRes.ok) {
             const pData = await pRes.json()
             if (pData.data && pData.data.length > 0) {

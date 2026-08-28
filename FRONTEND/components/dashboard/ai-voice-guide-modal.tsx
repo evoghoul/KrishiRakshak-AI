@@ -137,7 +137,7 @@ export function AIVoiceGuideModal({ isOpen, onClose, onNavigateTab }: AIVoiceGui
       const current = LANGUAGES.find((l) => l.code === selectedLang) || LANGUAGES[0]
       
       // Fetch the high-quality Sarvam TTS greeting from backend
-      fetch(`http://127.0.0.1:8000/api/welcome-greeting?language=${selectedLang}&user_name=${encodeURIComponent(userName)}`)
+      fetch(`/api/welcome-greeting?language=${selectedLang}&user_name=${encodeURIComponent(userName)}`)
         .then(res => res.json())
         .then(data => {
           if (data.status === 'success') {
@@ -258,7 +258,7 @@ export function AIVoiceGuideModal({ isOpen, onClose, onNavigateTab }: AIVoiceGui
       formData.append('language', selectedLang)
       formData.append('user_name', userName)
 
-      const res = await fetch('http://127.0.0.1:8000/api/voice-guide-offline', {
+      const res = await fetch('/api/voice-guide-offline', {
         method: 'POST',
         body: formData
       })
@@ -317,7 +317,7 @@ export function AIVoiceGuideModal({ isOpen, onClose, onNavigateTab }: AIVoiceGui
     setAiStatus('KrishiRakshak AI is analyzing your voice command...')
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/voice-guide', {
+      const res = await fetch('/api/voice-guide', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, language: selectedLang, user_name: userName })
