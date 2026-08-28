@@ -1059,6 +1059,18 @@ export default function Page() {
                 ))}
               </select>
             </div>
+            <div className="mt-4 border-t border-border pt-4">
+              <button
+                onClick={() => {
+                  localStorage.removeItem('krishi_tour_completed')
+                  setShowTour(true)
+                  setAppState('dashboard')
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary/10 border border-primary/30 py-3 text-sm font-bold text-primary hover:bg-primary hover:text-primary-foreground shadow-sm transition-all"
+              >
+                <Sparkles className="size-4" /> Replay App Tour
+              </button>
+            </div>
           </div>
 
           <div className="mt-10 flex flex-col sm:flex-row gap-4 border-t border-border pt-8">
