@@ -942,6 +942,7 @@ export default function Page() {
                 try { await auth.signOut(); } catch(e) {}
                 localStorage.removeItem('krishi_session')
                 localStorage.removeItem('krishi_lang')
+                localStorage.removeItem('krishirakshak_active_crop')
                 window.location.reload()
               }}
               className="flex flex-1 sm:flex-none sm:px-6 items-center justify-center gap-2 rounded-xl border border-destructive/30 bg-transparent py-3.5 text-sm font-bold text-destructive hover:bg-destructive/10 transition-colors"
