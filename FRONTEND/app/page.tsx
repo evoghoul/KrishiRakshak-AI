@@ -228,6 +228,14 @@ export default function Page() {
         window.recaptchaVerifier = null
       }
 
+      // Ensure a persistent recaptcha container exists in the body outside React's lifecycle
+      let container = document.getElementById('recaptcha-container')
+      if (!container) {
+        container = document.createElement('div')
+        container.id = 'recaptcha-container'
+        document.body.appendChild(container)
+      }
+
       window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
         size: 'invisible',
         callback: () => {
@@ -737,8 +745,6 @@ export default function Page() {
                     </p>
                   )}
                 </div>
-                {/* Hide from React's diffing algorithm to prevent removeChild crash */}
-                <div dangerouslySetInnerHTML={{ __html: '<div id="recaptcha-container"></div>' }} />
 
                 <button
                   type="submit"
