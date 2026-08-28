@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 from offline_ai.vision_classifier import predict_image
 
-OLLAMA_URL = "https://birds-finite-comedy-applicants.trycloudflare.com/api/generate"
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
 
 def ask_ollama(prompt: str, json_mode: bool = False, model: str = "llama3", images: list = None) -> str:
     """Helper to query local Llama 3 via Ollama."""
