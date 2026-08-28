@@ -737,8 +737,8 @@ export default function Page() {
                     </p>
                   )}
                 </div>
-
-                <div id="recaptcha-container"></div>
+                {/* Hide from React's diffing algorithm to prevent removeChild crash */}
+                <div dangerouslySetInnerHTML={{ __html: '<div id="recaptcha-container"></div>' }} />
 
                 <button
                   type="submit"
