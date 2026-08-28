@@ -96,7 +96,7 @@ export function CropDiagnostics({ scanData }: { scanData: any }) {
           </span>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-foreground">AI Vision Diagnostic</h2>
+              <h2 className="text-base font-bold text-foreground">Crop Health & Alerts</h2>
               <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
                 <Sparkles className="size-2.5" /> {scanData.confidence || '96% Match'}
               </span>

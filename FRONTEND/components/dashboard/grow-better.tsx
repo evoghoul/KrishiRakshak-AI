@@ -48,19 +48,39 @@ export function GrowBetter() {
 
   // Fetch the most recent scan from Firestore to persist state across reloads
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          const q = query(collection(db, 'users', user.uid, 'scans'), orderBy('timestamp', 'desc'), limit(1))
-          const querySnapshot = await getDocs(q)
-          if (!querySnapshot.empty) {
-            setScanData((prev: any) => prev || querySnapshot.docs[0].data())
-          }
-        } catch (e) {
-          console.error("Error fetching latest scan:", e)
+    const fetchLatestScan = async (userId: string) => {
+      try {
+        const q = query(collection(db, 'users', userId, 'scans'), orderBy('timestamp', 'desc'), limit(1))
+        const querySnapshot = await getDocs(q)
+        if (!querySnapshot.empty) {
+          setScanData((prev: any) => prev || querySnapshot.docs[0].data())
         }
+      } catch (e) {
+        console.error("Error fetching latest scan:", e)
+      }
+    }
+
+    const session = localStorage.getItem('krishi_session')
+    let localUserId = null
+    if (session) {
+      try {
+        const user = JSON.parse(session)
+        localUserId = user.phoneOrEmail
+      } catch (e) {}
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      const activeUserId = localUserId || user?.uid
+      if (activeUserId) {
+        await fetchLatestScan(activeUserId)
       }
     })
+    
+    // Also try immediately in case auth state takes time
+    if (localUserId) {
+      fetchLatestScan(localUserId)
+    }
+
     return () => unsubscribe()
   }, [])
 
