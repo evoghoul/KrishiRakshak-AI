@@ -166,11 +166,11 @@ export default function Page() {
       }
       fetchNotifications()
       
-      if (!localStorage.getItem('krishi_tour_completed')) {
+      if (!localStorage.getItem(`krishi_tour_completed_${userData.phoneOrEmail}`)) {
         setShowTour(true)
       }
     }
-  }, [appState, userData.address])
+  }, [appState, userData.phoneOrEmail])
 
   const [tab, setTab] = useState<DashboardTab>('home')
   const [isVoiceGuideOpen, setIsVoiceGuideOpen] = useState(false)
@@ -1060,7 +1060,7 @@ export default function Page() {
             <div className="mt-4 border-t border-border pt-4">
               <button
                 onClick={() => {
-                  localStorage.removeItem('krishi_tour_completed')
+                  localStorage.removeItem(`krishi_tour_completed_${userData.phoneOrEmail}`)
                   setShowTour(true)
                   setAppState('dashboard')
                 }}
@@ -1216,7 +1216,7 @@ export default function Page() {
         <OnboardingTour
           onComplete={() => {
             setShowTour(false)
-            localStorage.setItem('krishi_tour_completed', 'true')
+            localStorage.setItem(`krishi_tour_completed_${userData.phoneOrEmail}`, 'true')
           }}
         />
       )}
