@@ -745,11 +745,11 @@ export default function Page() {
                 >
                   {isSendingOtp ? (
                     <>
-                      <Loader2 className="size-4 animate-spin" /> Sending OTP...
+                      <Loader2 className="size-4 animate-spin" /> <span>Sending OTP...</span>
                     </>
                   ) : (
                     <>
-                      {t.sendOtp} <ArrowRight className="size-4" />
+                      <span>{t.sendOtp}</span> <ArrowRight className="size-4" />
                     </>
                   )}
                 </button>
@@ -814,11 +814,11 @@ export default function Page() {
                   >
                     {isSendingOtp ? (
                       <>
-                        <Loader2 className="size-4 animate-spin" /> Sending Code...
+                        <Loader2 className="size-4 animate-spin" /> <span>Sending Code...</span>
                       </>
                     ) : (
                       <>
-                        Send Email OTP <ArrowRight className="size-4" />
+                        <span>Send Email OTP</span> <ArrowRight className="size-4" />
                       </>
                     )}
                   </button>
@@ -954,11 +954,11 @@ export default function Page() {
             >
               {isVerifyingOtp ? (
                 <>
-                  <Loader2 className="size-4 animate-spin" /> Verifying Code...
+                  <Loader2 className="size-4 animate-spin" /> <span>Verifying Code...</span>
                 </>
               ) : (
                 <>
-                  {t.verifyBtn} <ArrowRight className="size-4" />
+                  <span>{t.verifyBtn}</span> <ArrowRight className="size-4" />
                 </>
               )}
             </button>
