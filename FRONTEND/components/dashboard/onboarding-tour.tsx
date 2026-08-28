@@ -5,7 +5,7 @@ import { driver } from 'driver.js'
 import 'driver.js/dist/driver.css'
 import { useLanguage, type SupportedLang } from '@/lib/language-context'
 
-const TOUR_TRANSLATIONS: Record<SupportedLang, any> = {
+const TOUR_TRANSLATIONS: Partial<Record<SupportedLang, any>> = {
   en: {
     steps: [
       { element: '#tour-welcome', popover: { title: 'Welcome to KrishiRakshak AI', description: 'Your personal farm intelligence agent. Let me give you a quick tour to help you get started.' } },
