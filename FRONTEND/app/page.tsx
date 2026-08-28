@@ -93,6 +93,7 @@ export default function Page() {
   const [emailAddress, setEmailAddress] = useState('')
   
   // Validation and OTP state
+  const [loginError, setLoginError] = useState('')
   const [phoneError, setPhoneError] = useState('')
   const [emailError, setEmailError] = useState('')
   const [otpError, setOtpError] = useState('')
@@ -442,16 +443,8 @@ export default function Page() {
       localStorage.setItem('krishi_session', JSON.stringify(userInfo))
       setAppState('dashboard')
     } catch (error: any) {
-      console.warn("Google Login notice, falling back to demo session:", error)
-      const userInfo = {
-        name: 'Demo Farmer',
-        initial: 'D',
-        address: userData.address || 'Vadlamudi, Andhra Pradesh',
-        phoneOrEmail: 'farmer.krishirakshak@gmail.com',
-      }
-      setUserData(userInfo)
-      localStorage.setItem('krishi_session', JSON.stringify(userInfo))
-      setAppState('dashboard')
+      console.error("Google Login Error:", error)
+      setLoginError(error.message || "Failed to login with Google.")
     }
   }
 
@@ -471,16 +464,8 @@ export default function Page() {
       localStorage.setItem('krishi_session', JSON.stringify(userInfo))
       setAppState('dashboard')
     } catch (error: any) {
-      console.warn("Guest Login notice, falling back to demo session:", error)
-      const userInfo = {
-        name: 'Guest Farmer',
-        initial: 'G',
-        address: userData.address || 'Vadlamudi, Andhra Pradesh',
-        phoneOrEmail: 'guest@krishirakshak.local',
-      }
-      setUserData(userInfo)
-      localStorage.setItem('krishi_session', JSON.stringify(userInfo))
-      setAppState('dashboard')
+      console.error("Guest Login Error:", error)
+      setLoginError(error.message || "Failed to continue as guest.")
     }
   }
 
@@ -662,6 +647,12 @@ export default function Page() {
           </div>
 
           <div className="p-8 space-y-6">
+            {loginError && (
+              <div className="rounded-xl bg-destructive/10 p-3.5 text-sm text-destructive border border-destructive/20 font-medium animate-in fade-in slide-in-from-top-2">
+                {loginError}
+              </div>
+            )}
+            
             {/* GOOGLE AUTHENTICATION FORM */}
             <div className="space-y-4">
               <button
