@@ -114,12 +114,17 @@ export function OnboardingTour({ onComplete }: { onComplete: () => void }) {
     })
 
     // Small delay to ensure DOM is fully rendered
-    setTimeout(() => {
-      d.drive()
+    const timer = setTimeout(() => {
+      try {
+        d.drive()
+      } catch(e) {
+        console.error("Driver error", e)
+      }
     }, 500)
 
     return () => {
-      d.destroy()
+      clearTimeout(timer)
+      try { d.destroy() } catch(e) {}
       if (audioRef.current) audioRef.current.pause()
       window.speechSynthesis.cancel()
     }
