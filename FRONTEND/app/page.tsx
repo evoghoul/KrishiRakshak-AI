@@ -662,169 +662,22 @@ export default function Page() {
           </div>
 
           <div className="p-8 space-y-6">
-            {/* Mode Switcher Tabs */}
-            <div className="grid grid-cols-2 gap-1 rounded-2xl bg-secondary/80 p-1.5 border border-border/60">
+            {/* GOOGLE AUTHENTICATION FORM */}
+            <div className="space-y-4">
               <button
+                onClick={handleGoogleLogin}
                 type="button"
-                onClick={() => {
-                  setAuthMode('phone')
-                  setPhoneError('')
-                  setEmailError('')
-                }}
-                className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all ${
-                  authMode === 'phone'
-                    ? 'bg-card text-foreground shadow-sm border border-border/50'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className="flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-background py-3.5 text-sm font-bold text-foreground hover:bg-secondary/70 transition-all shadow-sm active:scale-[0.99]"
               >
-                <Smartphone className="size-4 text-primary" /> Phone OTP
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('email')
-                  setPhoneError('')
-                  setEmailError('')
-                }}
-                className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all ${
-                  authMode === 'email'
-                    ? 'bg-card text-foreground shadow-sm border border-border/50'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Mail className="size-4 text-primary" /> Email / Google
+                <svg className="size-5" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                  <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                </svg>
+                {t.gmailBtn}
               </button>
             </div>
-
-            {authMode === 'phone' ? (
-              /* PHONE AUTHENTICATION FORM */
-              <form onSubmit={handlePhoneSubmit} className="space-y-4">
-                <div>
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Mobile Number (India)
-                  </label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 font-bold text-sm text-foreground select-none pointer-events-none">
-                        <span className="text-base">🇮🇳</span>
-                        <span>+91</span>
-                        <span className="h-4 w-px bg-border mx-1"></span>
-                      </div>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="tel"
-                        maxLength={10}
-                        required
-                        placeholder="98765 43210"
-                        value={phoneNumber}
-                        onChange={handlePhoneChange}
-                        className={`w-full rounded-xl border bg-background py-3.5 pl-24 pr-12 text-sm font-semibold text-foreground tracking-wider outline-none transition-all ${
-                          phoneError 
-                            ? 'border-red-500 focus:ring-2 focus:ring-red-500/20' 
-                            : 'border-border focus:border-primary focus:ring-2 focus:ring-primary/20'
-                        }`}
-                      />
-                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">
-                        {phoneNumber.length}/10
-                      </span>
-                    </div>
-                  </div>
-
-                  {phoneError && (
-                    <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-red-500 animate-in fade-in">
-                      <AlertCircle className="size-3.5 shrink-0" /> {phoneError}
-                    </p>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={phoneNumber.length !== 10 || isSendingOtp}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg active:scale-[0.99]"
-                >
-                  {isSendingOtp ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" /> <span>Sending OTP...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>{t.sendOtp}</span> <ArrowRight className="size-4" />
-                    </>
-                  )}
-                </button>
-              </form>
-            ) : (
-              /* EMAIL / GOOGLE AUTHENTICATION FORM */
-              <div className="space-y-4">
-                <button
-                  onClick={handleGoogleLogin}
-                  type="button"
-                  className="flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-background py-3.5 text-sm font-bold text-foreground hover:bg-secondary/70 transition-all shadow-sm active:scale-[0.99]"
-                >
-                  <svg className="size-5" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
-                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
-                    <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
-                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-                  </svg>
-                  {t.gmailBtn}
-                </button>
-
-                <div className="relative flex items-center py-1">
-                  <div className="flex-grow border-t border-border"></div>
-                  <span className="mx-4 shrink-0 text-xs font-semibold text-muted-foreground uppercase">OR EMAIL OTP</span>
-                  <div className="flex-grow border-t border-border"></div>
-                </div>
-
-                <form onSubmit={handleEmailSubmit} className="space-y-4">
-                  <div>
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                      Email Address
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-3.5 size-5 text-muted-foreground" />
-                      <input
-                        type="email"
-                        required
-                        placeholder="farmer@gmail.com"
-                        value={emailAddress}
-                        onChange={(e) => {
-                          setEmailAddress(e.target.value)
-                          if (emailError) setEmailError('')
-                        }}
-                        className={`w-full rounded-xl border bg-background py-3.5 pl-12 pr-4 text-sm font-medium text-foreground outline-none transition-all ${
-                          emailError 
-                            ? 'border-red-500 focus:ring-2 focus:ring-red-500/20' 
-                            : 'border-border focus:border-primary focus:ring-2 focus:ring-primary/20'
-                        }`}
-                      />
-                    </div>
-                    {emailError && (
-                      <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-red-500 animate-in fade-in">
-                        <AlertCircle className="size-3.5 shrink-0" /> {emailError}
-                      </p>
-                    )}
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={!emailAddress.trim() || isSendingOtp}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg active:scale-[0.99]"
-                  >
-                    {isSendingOtp ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" /> <span>Sending Code...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Send Email OTP</span> <ArrowRight className="size-4" />
-                      </>
-                    )}
-                  </button>
-                </form>
-              </div>
-            )}
 
             <div className="relative flex items-center py-1">
               <div className="flex-grow border-t border-border"></div>
