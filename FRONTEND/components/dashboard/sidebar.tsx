@@ -40,6 +40,7 @@ export function DashboardSidebar({ active, onChange, onOpenVoiceGuide }: Dashboa
           return (
             <button
               key={item.id}
+              id={`tour-${item.id}`}
               type="button"
               onClick={() => onChange(item.id)}
               aria-current={isActive ? 'page' : undefined}

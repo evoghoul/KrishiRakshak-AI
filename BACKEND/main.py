@@ -937,6 +937,51 @@ async def welcome_greeting(language: str = "hi-IN", user_name: str = "Farmer"):
         }
     }
 
+@app.get("/api/tour-tts")
+async def tour_tts(text: str, language: str = "en-IN"):
+    audio_base64 = None
+    if SARVAM_API_KEY:
+        try:
+            url = "https://api.sarvam.ai/text-to-speech"
+            sarvam_lang_map = {
+                "hi-IN": "hi-IN", "te-IN": "te-IN", "ta-IN": "ta-IN",
+                "kn-IN": "kn-IN", "ml-IN": "ml-IN", "mr-IN": "mr-IN",
+                "gu-IN": "gu-IN", "bn-IN": "bn-IN", "pa-IN": "pa-IN",
+                "or-IN": "or-IN", "en-IN": "en-IN"
+            }
+            sarvam_lang = sarvam_lang_map.get(language, "en-IN")
+            
+            payload = {
+                "inputs": [text],
+                "target_language_code": sarvam_lang,
+                "speaker": "meera",
+                "pitch": 0,
+                "pace": 1.15,
+                "loudness": 1.5,
+                "speech_sample_rate": 8000,
+                "enable_preprocessing": True,
+                "model": "aura-v1-en" if sarvam_lang == "en-IN" else "aura-v1"
+            }
+            headers = {
+                'api-subscription-key': SARVAM_API_KEY,
+                'Content-Type': 'application/json'
+            }
+            resp = requests.post(url, headers=headers, json=payload, timeout=10)
+            if resp.status_code == 200:
+                audios = resp.json().get('audios', [])
+                if audios:
+                    audio_base64 = audios[0]
+        except Exception as e:
+            print(f"[TTS Tour] Exception: {e}")
+            
+    return {
+        "status": "success",
+        "data": {
+            "text": text,
+            "audio_base64": audio_base64
+        }
+    }
+
 # ==========================================
 # 6. AI MARKET DISCOVERY ENDPOINTS (Search Grounding)
 # ==========================================

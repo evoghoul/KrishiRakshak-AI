@@ -15,6 +15,7 @@ import { GrowBetter } from '@/components/dashboard/grow-better'
 import { SellSmarter } from '@/components/dashboard/sell-smarter'
 import { LoseLess } from '@/components/dashboard/lose-less'
 import { AIVoiceGuideModal } from '@/components/dashboard/ai-voice-guide-modal'
+import { OnboardingTour } from '@/components/dashboard/onboarding-tour'
 import { useLanguage, LANGUAGE_OPTIONS, type SupportedLang } from '@/lib/language-context'
 
 declare global {
@@ -109,6 +110,7 @@ export default function Page() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState<{title: string, msg: string, type: 'urgent'|'info'}[]>([])
+  const [showTour, setShowTour] = useState(false)
 
   const [userData, setUserData] = useState({
     name: 'Farmer',
@@ -163,6 +165,10 @@ export default function Page() {
         }
       }
       fetchNotifications()
+      
+      if (!localStorage.getItem('krishi_tour_completed')) {
+        setShowTour(true)
+      }
     }
   }, [appState, userData.address])
 
@@ -1091,7 +1097,7 @@ export default function Page() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 flex h-20 items-center justify-between gap-4 border-b border-border bg-background/80 px-6 backdrop-blur lg:px-8">
-          <div className="min-w-0">
+          <div id="tour-welcome" className="min-w-0">
             <h1 className="truncate text-xl font-bold text-foreground lg:text-2xl">{meta.title}</h1>
             <p className="truncate text-sm text-muted-foreground">{meta.subtitle}</p>
           </div>
@@ -1099,6 +1105,7 @@ export default function Page() {
             
             {/* Quick Header AI Voice Guide Button */}
             <button
+              id="tour-voice-btn"
               type="button"
               onClick={() => setIsVoiceGuideOpen(true)}
               className="flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/30 px-3.5 py-2 text-xs font-extrabold text-primary hover:bg-primary hover:text-primary-foreground transition-all shadow-sm active:scale-95"
@@ -1127,7 +1134,7 @@ export default function Page() {
             </div>
             
             {/* FULLY FUNCTIONAL NOTIFICATION BELL WITH DROPDOWN */}
-            <div className="relative">
+            <div id="tour-notifications" className="relative">
               <button
                 type="button"
                 onClick={() => setShowNotifications(!showNotifications)}
@@ -1194,6 +1201,15 @@ export default function Page() {
           }
         }}
       />
+
+      {showTour && (
+        <OnboardingTour
+          onComplete={() => {
+            setShowTour(false)
+            localStorage.setItem('krishi_tour_completed', 'true')
+          }}
+        />
+      )}
     </div>
   )
 }
