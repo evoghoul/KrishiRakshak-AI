@@ -228,14 +228,6 @@ export default function Page() {
         window.recaptchaVerifier = null
       }
 
-      // Ensure a persistent recaptcha container exists in the body outside React's lifecycle
-      let container = document.getElementById('recaptcha-container')
-      if (!container) {
-        container = document.createElement('div')
-        container.id = 'recaptcha-container'
-        document.body.appendChild(container)
-      }
-
       window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
         size: 'invisible',
         callback: () => {

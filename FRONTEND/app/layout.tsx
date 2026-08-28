@@ -67,6 +67,8 @@ export default function RootLayout({
           strategy="afterInteractive"
         />
         <LanguageProvider>
+          {/* Global recaptcha container decoupled from React diffing */}
+          <div dangerouslySetInnerHTML={{ __html: '<div id="recaptcha-container"></div>' }} />
           {children}
           {process.env.NODE_ENV === 'production' && <Analytics />}
         </LanguageProvider>
