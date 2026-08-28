@@ -140,7 +140,7 @@ export function DashboardHome({ onNavigate }: { onNavigate?: (tab: any) => void 
   )
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/weather')
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/weather`)
       .then((res) => res.json())
       .then((data) => {
         if (data.status === 'success' || data.status === 'fallback') {

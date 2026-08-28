@@ -93,7 +93,7 @@ export function LoseLess() {
   const runAIAnalysis = async (data: typeof decisionData) => {
     setIsCalculating(true)
     try {
-      const response = await fetch('http://localhost:8000/api/decision', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/decision`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

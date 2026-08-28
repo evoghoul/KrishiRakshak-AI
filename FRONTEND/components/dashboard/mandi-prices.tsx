@@ -37,7 +37,7 @@ export function MandiPrices() {
   const fetchLivePrices = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch('http://localhost:8000/api/prices')
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/prices`)
       const result = await response.json()
 
       if (result && Array.isArray(result.data)) {

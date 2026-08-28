@@ -69,7 +69,7 @@ export function OnboardingTour({ onComplete }: { onComplete: () => void }) {
         }
         const apiLang = langMap[lang] || 'en-IN'
         
-        const res = await fetch(`http://localhost:8000/api/tour-tts?text=${encodeURIComponent(text)}&language=${apiLang}`)
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/tour-tts?text=${encodeURIComponent(text)}&language=${apiLang}`)
         const data = await res.json()
         if (data.status === 'success' && data.data.audio_base64) {
           const snd = new Audio(`data:audio/wav;base64,${data.data.audio_base64}`)

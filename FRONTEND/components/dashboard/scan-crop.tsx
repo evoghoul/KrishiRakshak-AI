@@ -57,7 +57,7 @@ export function ScanCrop({ onScanComplete }: { onScanComplete: (data: any) => vo
       // Increased timeout to 120 seconds for local Vision AI (Llava)
       const timeoutId = setTimeout(() => controller.abort(), 120000)
 
-      const response = await fetch('http://localhost:8000/api/scan', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/scan`, {
         method: 'POST',
         body: formData,
         signal: controller.signal

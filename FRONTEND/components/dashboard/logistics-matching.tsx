@@ -37,7 +37,7 @@ export function LogisticsMatching() {
   const handleAiSearch = async () => {
     setIsSearching(true)
     try {
-      const res = await fetch('http://localhost:8000/api/ai-logistics?location=Vadlamudi')
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/ai-logistics?location=Vadlamudi`)
       const data = await res.json()
       if (data.status === 'success' || data.status === 'fallback') {
         const newVehicles = data.data
