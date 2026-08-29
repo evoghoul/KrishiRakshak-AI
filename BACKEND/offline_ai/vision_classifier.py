@@ -9,8 +9,9 @@ import io
 # ==========================================
 # CONFIGURATION
 # ==========================================
-MODEL_SAVE_PATH = os.path.join(os.path.dirname(__file__), "plant_disease_model.pth")
-CLASS_MAPPING_PATH = os.path.join(os.path.dirname(__file__), "class_mapping.json")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_SAVE_PATH = os.path.join(BASE_DIR, "plant_disease_model.pth")
+CLASS_MAPPING_PATH = os.path.join(BASE_DIR, "class_mapping.json")
 
 # Global variables for caching the model
 _model = None
@@ -50,15 +51,48 @@ def load_model():
 def predict_image(image_bytes: bytes):
     """
     Takes image bytes, preprocesses it, and returns the predicted class label.
-    Validates if the image is a crop or non-crop based on the 'non_crop' class.
     """
-    # DEMO BYPASS: The offline CNN is trained on dummy data, so it rejects real images.
-    # We bypass the inference here to simulate a successful Chilli Leaf Curl detection.
-    print("[MOCK] Bypassing PyTorch CNN for demo purposes. Simulating Chilli Leaf Curl detection.")
+    load_model()
+    
+    # Preprocess image
+    try:
+        image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+    except Exception as e:
+        return {"status": "error", "message": f"Invalid image format: {e}"}
+
+    preprocess = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
+    
+    input_tensor = preprocess(image)
+    input_batch = input_tensor.unsqueeze(0).to(_device)
+
+    # Inference
+    with torch.no_grad():
+        output = _model(input_batch)
+        probabilities = torch.nn.functional.softmax(output[0], dim=0)
+        confidence, predicted_idx = torch.max(probabilities, 0)
+        
+    predicted_class = _class_names[predicted_idx.item()]
+    
+    if predicted_class == "non_crop":
+        crop_name = "Unknown"
+        disease = "Not a Crop"
+    else:
+        # e.g., 'tomato_early_blight' -> Crop: Tomato, Disease: Early Blight
+        # or 'tomato_healthy' -> Crop: Tomato, Disease: Healthy
+        parts = predicted_class.split('_', 1)
+        crop_name = parts[0].capitalize()
+        disease = parts[1].replace('_', ' ').title() if len(parts) > 1 else "Unknown Disease"
+
     return {
         "status": "success",
-        "raw_class": "chilli_leaf_curl",
-        "crop": "Chilli",
-        "condition": "Leaf Curl Virus",
-        "confidence": 0.98
+        "raw_class": predicted_class,
+        "crop": crop_name,
+        "condition": disease,
+        "confidence": round(confidence.item(), 4),
+        "is_plant": predicted_class != "non_crop"
     }

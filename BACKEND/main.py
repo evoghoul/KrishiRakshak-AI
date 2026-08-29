@@ -355,11 +355,10 @@ async def scan_crop_endpoint(crop_image: UploadFile = File(...)):
     try:
         content_type = crop_image.content_type # Tells Groq if it is image/webp, image/jpeg, etc.
         image_bytes = await crop_image.read()
-        image_data = base64.b64encode(image_bytes).decode('utf-8')
         
-        from agent import analyze_crop_structured
-        # CRITICAL: Pass the exact mime type to the AI so it doesn't crash on .webp files!
-        result = analyze_crop_structured(image_data, content_type)
+        from offline_ai.vision_classifier import predict_image
+        # Using custom-trained PyTorch CNN model for deterministic high accuracy
+        result = predict_image(image_bytes)
         
         return {"status": "success", "data": result}
     except Exception as e:

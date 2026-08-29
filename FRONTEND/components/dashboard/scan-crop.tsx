@@ -203,22 +203,12 @@ export function ScanCrop({ onScanComplete }: { onScanComplete: (data: any) => vo
                     <div className="flex items-center justify-center gap-1.5 text-primary font-extrabold text-xs mb-1">
                       <CheckCircle2 className="size-4" /> {lastResult.crop}
                     </div>
-                    <p className={`text-xs font-bold ${lastResult.status === 'healthy' ? 'text-primary' : 'text-destructive'}`}>
-                      {lastResult.status === 'healthy' ? 'Healthy' : lastResult.disease}
+                    <p className={`text-xs font-bold ${lastResult.condition?.toLowerCase().includes('healthy') ? 'text-primary' : 'text-destructive'}`}>
+                      {lastResult.condition}
                     </p>
-                    {lastResult.calculated_metrics && (
-                      <div className="mt-2 text-left p-2 rounded-xl bg-background/50 border border-primary/10 text-[10px] text-muted-foreground whitespace-pre-wrap">
-                        <strong className="text-foreground">Metrics:</strong><br/>{lastResult.calculated_metrics}
-                      </div>
-                    )}
-                    {lastResult.details && (
-                      <p className="mt-2 text-[10px] text-muted-foreground italic leading-tight text-left">
-                        "{lastResult.details}"
-                      </p>
-                    )}
                     <div className="mt-2 text-center">
                       <span className="inline-flex items-center gap-1 rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-bold text-primary">
-                        <Sparkles className="size-2.5" /> {lastResult.confidence || '97% Match'}
+                        <Sparkles className="size-2.5" /> Confidence: {(lastResult.confidence * 100).toFixed(1)}%
                       </span>
                     </div>
                   </div>

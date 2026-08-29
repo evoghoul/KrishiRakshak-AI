@@ -5,31 +5,45 @@ import torch.optim as optim
 from torchvision import datasets, models, transforms
 from torch.utils.data import DataLoader
 import json
+from PIL import Image
+import numpy as np
 
 # ==========================================
 # CONFIGURATION
 # ==========================================
-DATA_DIR = "dataset" # Create this folder and put your images here
-MODEL_SAVE_PATH = "plant_disease_model.pth"
-CLASS_MAPPING_PATH = "class_mapping.json"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "dataset")
+MODEL_SAVE_PATH = os.path.join(BASE_DIR, "plant_disease_model.pth")
+CLASS_MAPPING_PATH = os.path.join(BASE_DIR, "class_mapping.json")
 BATCH_SIZE = 32
 EPOCHS = 1
 LEARNING_RATE = 0.001
 
-# The expected dataset structure:
-# dataset/
-# ├── non_crop/             (Invalid images)
-# ├── tomato_healthy/       (Healthy Tomato)
-# ├── tomato_early_blight/  (Diseased Tomato)
-# └── wheat_rust/           (Diseased Wheat)
-# etc...
+def create_dummy_dataset():
+    """Creates a dummy dataset so the training script doesn't crash if the user hasn't provided real data."""
+    print("Creating dummy dataset for initial training...")
+    dummy_classes = ["tomato_healthy", "tomato_early_blight", "wheat_rust", "non_crop"]
+    os.makedirs(DATA_DIR, exist_ok=True)
+    
+    for cls in dummy_classes:
+        cls_dir = os.path.join(DATA_DIR, cls)
+        os.makedirs(cls_dir, exist_ok=True)
+        # Create 5 random images per class
+        for i in range(5):
+            img_path = os.path.join(cls_dir, f"dummy_{i}.jpg")
+            if not os.path.exists(img_path):
+                # Random color image
+                img_array = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
+                img = Image.fromarray(img_array)
+                img.save(img_path)
+    print("Dummy dataset created.")
 
 def train_model():
     print(f"Checking for dataset in: {DATA_DIR}...")
-    if not os.path.exists(DATA_DIR):
-        print(f"Error: Directory '{DATA_DIR}' not found.")
-        print("Please create the 'dataset' folder and organize your images into subfolders based on their class (e.g., 'tomato_healthy', 'non_crop').")
-        return
+    if not os.path.exists(DATA_DIR) or len(os.listdir(DATA_DIR)) == 0:
+        print(f"Warning: Directory '{DATA_DIR}' not found or empty.")
+        print("Please replace this dummy dataset with real folders of images (e.g., 'tomato_healthy', 'non_crop') for real accuracy.")
+        create_dummy_dataset()
 
     # Data Augmentation & Normalization for Training
     data_transforms = {
@@ -47,8 +61,7 @@ def train_model():
         ]),
     }
 
-    # Load Dataset (Assuming 80-20 Train-Val Split can be done manually or via SubsetRandomSampler, using full folder here for simplicity)
-    full_dataset = datasets.ImageFolder(os.path.join(DATA_DIR), data_transforms['train'])
+    full_dataset = datasets.ImageFolder(DATA_DIR, data_transforms['train'])
     
     # Save class mapping
     class_names = full_dataset.classes
@@ -56,13 +69,13 @@ def train_model():
         json.dump(class_names, f)
     print(f"Found {len(class_names)} classes: {class_names}")
 
-    dataloader = DataLoader(full_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
+    dataloader = DataLoader(full_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=0)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # Build Model (MobileNetV2 is fast and efficient for CPU/Edge)
+    # Build Model
     print("Loading MobileNetV2 architecture...")
-    model = models.mobilenet_v2(pretrained=True)
+    model = models.mobilenet_v2(weights=models.MobileNet_V2_Weights.DEFAULT)
     num_ftrs = model.classifier[1].in_features
     model.classifier[1] = nn.Linear(num_ftrs, len(class_names))
     model = model.to(device)
@@ -70,7 +83,6 @@ def train_model():
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.classifier.parameters(), lr=LEARNING_RATE)
 
-    # Training Loop
     print("Starting training...")
     for epoch in range(EPOCHS):
         model.train()
