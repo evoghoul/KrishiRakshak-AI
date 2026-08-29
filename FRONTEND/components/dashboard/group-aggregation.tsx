@@ -42,7 +42,7 @@ export function GroupAggregation() {
   const handleAiSearch = async () => {
     setIsSearching(true)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/ai-pools?location=Vadlamudi`)
+      const res = await fetch(`/api/ai-pools?location=Vadlamudi`)
       const data = await res.json()
       if (data.status === 'success' || data.status === 'fallback') {
         const newPools = data.data

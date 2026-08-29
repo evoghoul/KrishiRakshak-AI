@@ -85,7 +85,7 @@ export function GrowBetter() {
   }, [])
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/weather?location=Vadlamudi`)
+    fetch(`/api/weather?location=Vadlamudi`)
       .then(res => res.json())
       .then(data => setWeatherData(data))
       .catch(console.error)

@@ -296,7 +296,7 @@ export default function Page() {
     // 2. If Firebase fails, notify and fallback to backend dev_mode
     try {
       console.warn(`[Fallback] Firebase SMS failed (${firebaseErrorMessage}), using backend fallback...`)
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/send-otp?phone=${phoneNumber}`, {
+      const res = await fetch(`/api/send-otp?phone=${phoneNumber}`, {
         method: 'POST',
       })
       const data = await res.json()
@@ -379,7 +379,7 @@ export default function Page() {
 
       // 2. Fallback to Backend
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/send-otp?phone=${phoneNumber}`, {
+        const res = await fetch(`/api/send-otp?phone=${phoneNumber}`, {
           method: 'POST',
         })
         const data = await res.json()
@@ -556,7 +556,7 @@ export default function Page() {
 
       // 2. Verify via backend (Fast2SMS OTP / dev_mode)
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/verify-otp`, {
+        const res = await fetch(`/api/verify-otp`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phone: phoneNumber, otp: entered }),

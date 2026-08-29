@@ -30,7 +30,7 @@ export function NearbyBuyers() {
   const handleAiSearch = async () => {
     setIsSearching(true)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/ai-buyers?location=Vadlamudi`)
+      const res = await fetch(`/api/ai-buyers?location=Vadlamudi`)
       const data = await res.json()
       if (data.status === 'success' || data.status === 'fallback') {
         const newBuyers = data.data
