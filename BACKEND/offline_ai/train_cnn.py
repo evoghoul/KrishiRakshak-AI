@@ -16,7 +16,7 @@ DATA_DIR = os.path.join(BASE_DIR, "dataset")
 MODEL_SAVE_PATH = os.path.join(BASE_DIR, "plant_disease_model.pth")
 CLASS_MAPPING_PATH = os.path.join(BASE_DIR, "class_mapping.json")
 BATCH_SIZE = 32
-EPOCHS = 1
+EPOCHS = 10
 LEARNING_RATE = 0.001
 
 def create_dummy_dataset():
@@ -77,17 +77,22 @@ def train_model():
     print("Loading MobileNetV2 architecture...")
     model = models.mobilenet_v2(weights=models.MobileNet_V2_Weights.DEFAULT)
     
-    # FREEZE BACKBONE: This speeds up CPU training by ~5x because it prevents 
-    # PyTorch from calculating gradients for the massive base CNN layers
+    # FREEZE BACKBONE initially to speed up training, but unfreeze the last feature block 
+    # so the model can actually learn the specific leaf textures (this fixes the 'mock/fake' output).
     for param in model.parameters():
         param.requires_grad = False
+        
+    # Unfreeze the very last layer block of MobileNetV2 for fine-tuning
+    for param in model.features[-1].parameters():
+        param.requires_grad = True
 
     num_ftrs = model.classifier[1].in_features
     model.classifier[1] = nn.Linear(num_ftrs, len(class_names))
     model = model.to(device)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.classifier.parameters(), lr=LEARNING_RATE)
+    # Optimize both the classifier and the unfrozen feature block
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=LEARNING_RATE)
 
     print("Starting training...")
     for epoch in range(EPOCHS):

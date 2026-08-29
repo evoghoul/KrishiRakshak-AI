@@ -78,21 +78,43 @@ def predict_image(image_bytes: bytes):
         
     predicted_class = _class_names[predicted_idx.item()]
     
+    # Treatment / Cure mapping for the Schedule Planner
+    treatment_map = {
+        "Pepper__bell___Bacterial_spot": "Apply copper-based bactericide and remove infected leaves",
+        "Pepper__bell___healthy": "Maintain regular watering and fertilization schedule",
+        "Potato___Early_blight": "Apply fungicide containing chlorothalonil or mancozeb",
+        "Potato___Late_blight": "Apply fungicide immediately and ensure good drainage",
+        "Potato___healthy": "Maintain regular watering and fertilization schedule",
+        "Tomato_Bacterial_spot": "Apply copper-based sprays and avoid overhead watering",
+        "Tomato_Early_blight": "Remove lower infected leaves and apply fungicide",
+        "Tomato_Late_blight": "Apply fungicide immediately and destroy severely infected plants",
+        "Tomato_Leaf_Mold": "Improve ventilation and apply preventative fungicide",
+        "Tomato_Septoria_leaf_spot": "Remove infected leaves and apply fungicide",
+        "Tomato_Spider_mites_Two_spotted_spider_mite": "Apply insecticidal soap or neem oil",
+        "Tomato__Target_Spot": "Apply fungicide and ensure good air circulation",
+        "Tomato__Tomato_YellowLeaf__Curl_Virus": "Control whiteflies and remove infected plants",
+        "Tomato__Tomato_mosaic_virus": "Remove infected plants and wash hands/tools thoroughly",
+        "Tomato_healthy": "Maintain regular watering and fertilization schedule"
+    }
+    
     if predicted_class == "non_crop":
         crop_name = "Unknown"
         disease = "Not a Crop"
+        task = "Monitor crop health"
     else:
         # e.g., 'tomato_early_blight' -> Crop: Tomato, Disease: Early Blight
         # or 'tomato_healthy' -> Crop: Tomato, Disease: Healthy
         parts = predicted_class.split('_', 1)
         crop_name = parts[0].capitalize()
         disease = parts[1].replace('_', ' ').title() if len(parts) > 1 else "Unknown Disease"
+        task = treatment_map.get(predicted_class, "Monitor crop health")
 
     return {
         "status": "success",
         "raw_class": predicted_class,
         "crop": crop_name,
         "condition": disease,
+        "task": task,
         "confidence": round(confidence.item(), 4),
         "is_plant": predicted_class != "non_crop"
     }
