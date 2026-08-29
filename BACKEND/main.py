@@ -990,7 +990,7 @@ def call_gemini_search(prompt: str, fallback_data: list):
     if not gemini_api_key:
         return {"status": "fallback", "data": fallback_data, "message": "No API Key"}
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={gemini_api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_api_key}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
@@ -1004,6 +1004,11 @@ def call_gemini_search(prompt: str, fallback_data: list):
         res = requests.post(url, json=payload, timeout=20)
         if res.status_code == 200:
             text = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            if text.startswith("```"):
+                text = text.split("\n", 1)[-1]
+            if text.endswith("```"):
+                text = text.rsplit("\n", 1)[0]
+            text = text.strip()
             return {"status": "success", "data": json.loads(text)}
         elif res.status_code == 429:
             print("[Gemini] Quota Exceeded. Returning fallback data.")
