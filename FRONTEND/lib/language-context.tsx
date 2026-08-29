@@ -131,28 +131,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [detectedRegion, setDetectedRegion] = useState<string | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
 
-  useEffect(() => {
-    // Patch window.fetch globally to bypass Ngrok browser warning
-    if (typeof window !== 'undefined') {
-      const originalFetch = window.fetch;
-      window.fetch = async function (...args) {
-        let [resource, config] = args;
-        if (!config) config = {};
-        if (!config.headers) config.headers = {};
-        
-        // Convert headers to Record if it's Headers object
-        if (config.headers instanceof Headers) {
-          config.headers.append('ngrok-skip-browser-warning', 'true');
-        } else if (Array.isArray(config.headers)) {
-          config.headers.push(['ngrok-skip-browser-warning', 'true']);
-        } else {
-          (config.headers as Record<string, string>)['ngrok-skip-browser-warning'] = 'true';
-        }
-        
-        return originalFetch(resource, config);
-      };
-    }
-  }, []);
+
 
   useEffect(() => {
     const initLanguage = async () => {
