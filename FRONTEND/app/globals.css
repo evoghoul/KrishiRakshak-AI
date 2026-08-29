@@ -213,3 +213,14 @@ body { top: 0px !important; }
 .goog-te-combo { display: none !important; }
 .skiptranslate > iframe { display: none !important; }
 #google_translate_element { display: none !important; }
+
+/* Hide Google Translate Tooltips & Hover Highlights */
+#goog-gt-tt { display: none !important; }
+.goog-te-balloon-frame { display: none !important; }
+.goog-tooltip { display: none !important; }
+.goog-tooltip:hover { display: none !important; }
+.goog-text-highlight {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
