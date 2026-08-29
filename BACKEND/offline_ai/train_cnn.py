@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 import json
 from PIL import Image
 import numpy as np
-
+from tqdm import tqdm
 # ==========================================
 # CONFIGURATION
 # ==========================================
@@ -76,6 +76,12 @@ def train_model():
     # Build Model
     print("Loading MobileNetV2 architecture...")
     model = models.mobilenet_v2(weights=models.MobileNet_V2_Weights.DEFAULT)
+    
+    # FREEZE BACKBONE: This speeds up CPU training by ~5x because it prevents 
+    # PyTorch from calculating gradients for the massive base CNN layers
+    for param in model.parameters():
+        param.requires_grad = False
+
     num_ftrs = model.classifier[1].in_features
     model.classifier[1] = nn.Linear(num_ftrs, len(class_names))
     model = model.to(device)
@@ -89,7 +95,7 @@ def train_model():
         running_loss = 0.0
         running_corrects = 0
 
-        for inputs, labels in dataloader:
+        for inputs, labels in tqdm(dataloader, desc=f"Epoch {epoch+1}/{EPOCHS}"):
             inputs = inputs.to(device)
             labels = labels.to(device)
 
